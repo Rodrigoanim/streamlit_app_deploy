@@ -224,7 +224,7 @@ def grafico_barra(cursor, element):
 
 def show_results():
     """
-    Função principal para exibir a página de resultados com layout em duas colunas
+    Função principal para exibir a página de resultados
     """
     try:
         if 'user_id' not in st.session_state:
@@ -238,9 +238,6 @@ def show_results():
         
         # Garante que existam dados para o usuário
         new_user(cursor, user_id)
-        
-        # Criar duas colunas
-        col1, col2 = st.columns(2)
         
         # Buscar todos os elementos
         cursor.execute("""
@@ -258,32 +255,14 @@ def show_results():
         
         # Processar cada elemento
         for element in elements:
-            # Determinar em qual coluna o elemento deve aparecer
-            e_col = element[7]  # e_col do elemento
-            
-            # Elementos da coluna 1 (e_col <= 3)
-            if e_col <= 3:
-                with col1:
-                    if element[1] == 'titulo':
-                        titulo(cursor, element)
-                    elif element[1] == 'pula linha':
-                        pula_linha(cursor, element)
-                    elif element[1] == 'call_dados':
-                        call_dados(cursor, element)
-                    elif element[1] == 'grafico':
-                        grafico_barra(cursor, element)
-            
-            # Elementos da coluna 2 (e_col > 3)
-            else:
-                with col2:
-                    if element[1] == 'titulo':
-                        titulo(cursor, element)
-                    elif element[1] == 'pula linha':
-                        pula_linha(cursor, element)
-                    elif element[1] == 'call_dados':
-                        call_dados(cursor, element)
-                    elif element[1] == 'grafico':
-                        grafico_barra(cursor, element)
+            if element[1] == 'titulo':
+                titulo(cursor, element)
+            elif element[1] == 'pula linha':
+                pula_linha(cursor, element)
+            elif element[1] == 'call_dados':
+                call_dados(cursor, element)
+            elif element[1] == 'grafico':
+                grafico_barra(cursor, element)
         
         conn.close()
         

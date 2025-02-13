@@ -1,5 +1,5 @@
 # Arquivo: crude.py
-# Data: 12/02/2025 - 19:52
+# Data: 13/02/2025 - 14:52
 # IDE Cursor - claude 3.5 sonnet
 # nova coluna section
 
@@ -9,6 +9,15 @@ import sqlite3
 
 # Nome do banco de dados
 DB_NAME = "calcpc.db"
+
+def format_br_number(value):
+    """Formata um número para o padrão brasileiro."""
+    try:
+        if pd.isna(value) or value == '':
+            return ''
+        return f"{float(str(value).replace(',', '.')):.2f}".replace('.', ',')
+    except:
+        return ''
 
 def show_crud():
     """Exibe registros administrativos em formato de tabela."""
@@ -63,11 +72,24 @@ def show_crud():
             
             st.write("### Dados da Tabela")
             df = pd.DataFrame(data, columns=columns)
+            
+            # Formata a coluna value_element para o padrão brasileiro
+            if 'value_element' in df.columns:
+                df['value_element'] = df['value_element'].apply(
+                    lambda x: format_br_number(x) if pd.notnull(x) else ''
+                )
+            
             st.dataframe(df, use_container_width=True)
             
-            # Botão de download
+            # Botão de download - mantém o formato original para exportação
             if not df.empty:
-                txt_data = df.to_csv(
+                export_df = df.copy()
+                if 'value_element' in export_df.columns:
+                    export_df['value_element'] = export_df['value_element'].apply(
+                        lambda x: format_br_number(x) if pd.notnull(x) else ''
+                    )
+                
+                txt_data = export_df.to_csv(
                     sep='\t',
                     index=False,
                     encoding='cp1252'

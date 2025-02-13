@@ -1,7 +1,7 @@
 # Arquivo: form_model.py
-# Data: 12/02/2025 - Hora: 20H35
+# Data: 13/02/2025 - Hora: 13H42
 # CursorAI - claude 3.5 sonnet - Composer
-# 3x formualarios de entrada de dados
+# 3x formularios de entrada de dados
 
 import sqlite3
 import streamlit as st
@@ -57,8 +57,7 @@ def get_element_value(cursor, name_element, element=None):
     """, (name_element, st.session_state.user_id))
     result = cursor.fetchone()
     if result and result[0] is not None:
-        # Converte string com vírgula para float
-        return float(str(result[0]).replace(',', '.'))
+        return float(result[0])  # Valor já está como REAL no banco
     return 0.0
 
 def calculate_formula(formula, values, cursor):
@@ -181,6 +180,7 @@ def process_conditional_element(cursor, element):
                         else:
                             final_value = float(math_value)
                         
+                        # Atualiza o banco com valor REAL
                         cursor.execute("""
                             UPDATE forms_tab 
                             SET value_element = ? 
@@ -443,13 +443,9 @@ def process_forms_tab(section='cafe'):
 
                         elif type_elem == 'input':
                             try:
-                                # Trata o valor atual sempre com 2 casas decimais na exibição
+                                # Converte o valor REAL do banco para exibição no formato BR
                                 if value is not None:
-                                    try:
-                                        # Converte o valor do banco (já em formato BR) para exibição
-                                        current_value = str(value) if ',' in str(value) else f"{float(str(value).replace('.', ',')):.2f}"
-                                    except:
-                                        current_value = "0,00"
+                                    current_value = f"{float(value):.2f}".replace('.', ',')
                                 else:
                                     current_value = "0,00"
                                 
@@ -460,13 +456,12 @@ def process_forms_tab(section='cafe'):
                                 )
                                 
                                 try:
-                                    # Remove pontos de milhar e mantém vírgula decimal
-                                    cleaned_input = input_value.strip().replace('.', '')
-                                    # Armazena o valor no formato BR
-                                    numeric_value = cleaned_input if ',' in cleaned_input else f"{float(cleaned_input):.2f}".replace('.', ',')
+                                    # Remove pontos de milhar e converte vírgula para ponto
+                                    cleaned_input = input_value.strip().replace('.', '').replace(',', '.')
+                                    numeric_value = float(cleaned_input)
                                     
-                                    # Compara valores no formato BR
-                                    if numeric_value != str(value):
+                                    # Compara valores como float
+                                    if abs(numeric_value - float(value or 0)) > 1e-10:
                                         cursor.execute("""
                                             UPDATE forms_tab 
                                             SET value_element = ? 
@@ -475,12 +470,11 @@ def process_forms_tab(section='cafe'):
                                         conn.commit()
                                         st.rerun()
                                     
-                                    # Para cálculos internos, converte para float
-                                    st.session_state.form_values[name] = float(numeric_value.replace(',', '.'))
+                                    st.session_state.form_values[name] = numeric_value
                                     
                                 except ValueError:
                                     st.error(f"Por favor, insira apenas números em {msg}")
-                                    st.session_state.form_values[name] = float(str(value).replace(',', '.')) if value is not None else 0.0
+                                    st.session_state.form_values[name] = float(value or 0)
                             
                             except Exception as e:
                                 st.error(f"Erro ao processar input: {str(e)}")
@@ -508,15 +502,16 @@ def process_forms_tab(section='cafe'):
 
                                 result = calculate_formula(math_elem, st.session_state.form_values, cursor)
                                 
-                                # Converte resultado para formato BR antes de salvar
-                                result_br = f"{result:.2f}".replace('.', ',')
-                                
+                                # Atualiza o banco com valor REAL
                                 cursor.execute("""
                                     UPDATE forms_tab 
                                     SET value_element = ? 
                                     WHERE name_element = ? AND user_id = ?
-                                """, (result_br, name, st.session_state.user_id))
+                                """, (result, name, st.session_state.user_id))
                                 conn.commit()
+                                
+                                # Exibe no formato BR
+                                result_br = f"{result:.2f}".replace('.', ',')
                                 
                                 st.markdown(f"""
                                     <div style='text-align: left;'>

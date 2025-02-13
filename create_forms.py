@@ -1,8 +1,8 @@
 # Arquivo: create_forms.py
-# Data: 12/02/2025 - 20:26
+# Data: 13/02/2025 - 14:39
 # Descrição: Script para atualizar atraves de um arquivo .txt
 # Cursor - Claude 3.5 Sonnet
-# Novo campo: user_id
+# Coluna: value_element = real
 # Programa roda direto no Python - não usar o streamlit
 
 
@@ -59,15 +59,15 @@ def format_float_value(value):
         if not value and value != 0:
             return 0.0
             
+        # Se já for float, retorna diretamente
+        if isinstance(value, float):
+            return value
+            
         # Converte para string e remove espaços
         str_value = str(value).strip()
         
         # Remove pontos de milhar e substitui vírgula por ponto decimal para cálculo
-        if isinstance(str_value, str):
-            # Remove pontos de milhar
-            str_value = str_value.replace('.', '')
-            # Substitui vírgula por ponto decimal
-            str_value = str_value.replace(',', '.')
+        str_value = str_value.replace('.', '').replace(',', '.')
         
         # Se após limpeza ficar vazio
         if not str_value:
@@ -76,19 +76,18 @@ def format_float_value(value):
         # Converte para float
         float_value = float(str_value)
         
-        # Trata valores muito pequenos
-        if abs(float_value) < 1e-10:
-            return 0.0
-            
-        # Trata valores muito grandes
-        if abs(float_value) > 1e15:
-            print(f"Aviso: Valor muito grande detectado: {value}")
-            
         return float_value
         
     except Exception as e:
         print(f"Erro ao formatar valor numérico: {value}. Erro: {str(e)}")
         return 0.0
+
+def format_br_number(value):
+    """Formata um número float para o padrão brasileiro (vírgula como decimal)."""
+    try:
+        return f"{float(value)}".replace('.', ',')
+    except:
+        return '0,0'
 
 def validate_selectbox_data(row):
     """Valida e corrige dados do selectbox."""
@@ -112,16 +111,19 @@ def validate_selectbox_data(row):
             else:
                 row['str_element'] = ''
             
-            # Força value_element para '0,0'
+            # Força value_element para 0.0
             row['value_element'] = 0.0
+            print(f"Valor do selectbox definido como: {format_br_number(row['value_element'])}")
         else:
             # Trata value_element e registra valores problemáticos
             original_value = row['value_element']
             row['value_element'] = format_float_value(original_value)
             
             # Registra conversões para zero que não eram zero originalmente
-            if row['value_element'] == 0.0 and str(original_value).strip() not in ['0', '0,0']:
-                print(f"Aviso: Valor original '{original_value}' foi convertido para '0,0'")
+            if row['value_element'] == 0.0 and str(original_value).strip() not in ['0', '0,0', '']:
+                print(f"Aviso: Valor original '{original_value}' foi convertido para '{format_br_number(0.0)}'")
+            else:
+                print(f"Valor convertido: {format_br_number(row['value_element'])}")
             
         return True, row
     except Exception as e:
@@ -199,7 +201,7 @@ def create_database():
                 type_element TEXT NOT NULL,
                 math_element TEXT,
                 msg_element TEXT,
-                value_element TEXT,
+                value_element REAL,
                 select_element TEXT,
                 str_element TEXT,
                 e_col INTEGER,
@@ -232,10 +234,6 @@ def create_database():
                 if not is_valid:
                     continue
                 
-                # Converte valores numéricos para string no formato brasileiro antes de salvar
-                if isinstance(row_dict['value_element'], (int, float)):
-                    row_dict['value_element'] = f"{row_dict['value_element']}".replace('.', ',')
-                
                 try:
                     cursor.execute(f"""
                         INSERT INTO {table_name} (
@@ -249,7 +247,7 @@ def create_database():
                         str(row_dict['type_element']),
                         str(row_dict['math_element']),
                         str(row_dict['msg_element']),
-                        str(row_dict['value_element']),
+                        row_dict['value_element'],  # Mantém como float para o SQLite
                         str(row_dict['select_element']),
                         str(row_dict['str_element']),
                         int(float(format_float_value(row_dict['e_col']))),
@@ -257,6 +255,7 @@ def create_database():
                         int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
                         str(row_dict['section']) if pd.notna(row_dict.get('section')) else None
                     ))
+                    print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
                 except Exception as e:
                     print(f"Erro ao inserir linha na tabela {table_name}: {str(e)}")
                     continue
