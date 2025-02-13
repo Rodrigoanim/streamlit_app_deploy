@@ -1,5 +1,5 @@
 # Arquivo: form_model.py
-# Data: 08/02/2025 - Hora: 15h40
+# Data: 12/02/2025 - Hora: 20H35
 # CursorAI - claude 3.5 sonnet - Composer
 # 3x formualarios de entrada de dados
 
@@ -56,7 +56,10 @@ def get_element_value(cursor, name_element, element=None):
         WHERE name_element = ? AND user_id = ?
     """, (name_element, st.session_state.user_id))
     result = cursor.fetchone()
-    return result[0] if result and result[0] is not None else 0.0
+    if result and result[0] is not None:
+        # Converte string com vírgula para float
+        return float(str(result[0]).replace(',', '.'))
+    return 0.0
 
 def calculate_formula(formula, values, cursor):
     """
@@ -68,8 +71,10 @@ def calculate_formula(formula, values, cursor):
             return float(formula)
         
         # Se for string numérica
-        if isinstance(formula, str) and formula.replace('.','',1).isdigit():
-            return float(formula)
+        if isinstance(formula, str):
+            formula = formula.replace(',', '.')
+            if formula.replace('.','',1).isdigit():
+                return float(formula)
         
         # Processa referências de diferentes abas
         processed_formula = str(formula)
@@ -123,6 +128,8 @@ def calculate_formula(formula, values, cursor):
             )
             processed_formula = re.sub(r'\b' + re.escape(ref) + r'\b', str(float_value), processed_formula)
         
+        # Substitui vírgulas por pontos antes do eval
+        processed_formula = processed_formula.replace(',', '.')
         result = eval(processed_formula)
         return float(result)
         
@@ -224,6 +231,7 @@ def titulo(cursor, element):
 def new_user(cursor, user_id):
     """
     Inicializa registros para um novo usuário copiando dados do user_id 0.
+    Mantém a seção original dos registros ao copiar.
     """
     try:
         # Verifica se já existem registros para o usuário
@@ -234,17 +242,17 @@ def new_user(cursor, user_id):
         if cursor.fetchone()[0] > 0:
             return  # Usuário já tem registros
             
-        # Copia apenas os registros da forms_tab do user_id 0
+        # Copia registros do user_id 0 mantendo a seção original
         cursor.execute("""
             INSERT INTO forms_tab (
                 name_element, type_element, math_element, msg_element,
                 value_element, select_element, str_element, e_col, e_row,
-                user_id
+                section, user_id
             )
             SELECT 
                 name_element, type_element, math_element, msg_element,
                 value_element, select_element, str_element, e_col, e_row,
-                ? as user_id
+                section, ? as user_id
             FROM forms_tab 
             WHERE user_id = 0
         """, (user_id,))
@@ -255,20 +263,30 @@ def new_user(cursor, user_id):
         st.error(f"Erro ao criar registros para novo usuário: {str(e)}")
         raise
 
-def process_forms_tab():
-    """Processa registros da tabela forms_tab e exibe em layout de grade."""
+def process_forms_tab(section='cafe'):
+    """
+    Processa registros da tabela forms_tab e exibe em layout de grade.
+    
+    Args:
+        section (str): Seção a ser exibida ('cafe', 'moagem' ou 'embalagem')
+    """
     conn = None
     try:
-        # Verifica se há um usuário logado
+        # 1. Verifica se há um usuário logado
         if 'user_id' not in st.session_state:
             st.error("Usuário não está logado!")
             return
             
+        # 2. Armazena user_id em variável
         user_id = st.session_state.user_id
         
-        # Títulos com estilo
-        # st.title("Estimativas Anuais de Perfil Ambiental")
-        st.markdown("## Página de Entrada de Dados - Tipo do Café")
+        # Títulos com estilo baseados na seção
+        titles = {
+            'cafe': "## Página de Entrada de Dados - Tipo do Café",
+            'moagem': "## Página de Entrada de Dados - Moagem e Torrefação",
+            'embalagem': "## Página de Entrada de Dados - Embalagem"
+        }
+        st.markdown(titles.get(section, "## Página de Entrada de Dados"))
         
         # Inicializa session_state
         if 'form_values' not in st.session_state:
@@ -278,19 +296,24 @@ def process_forms_tab():
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
 
-        # Inicializa registros para novo usuário se necessário
+        # 3. Garante que existam dados para o usuário
         new_user(cursor, user_id)
         conn.commit()
 
-        # Busca elementos ordenados (modificada para incluir user_id)
+        # 4. Busca dados específicos do usuário logado e da seção atual
         cursor.execute("""
             SELECT name_element, type_element, math_element, msg_element,
                    value_element, select_element, str_element, e_col, e_row
             FROM forms_tab
-            WHERE user_id = ?
+            WHERE user_id = ? AND section = ?
             ORDER BY e_row, e_col
-        """, (user_id,))
+        """, (user_id, section))
         elements = cursor.fetchall()
+
+        # Verifica se existem elementos para esta seção
+        if not elements:
+            st.warning(f"Nenhum elemento encontrado para a seção {section}")
+            return
 
         # Agrupa elementos por linha
         rows = {}
@@ -346,6 +369,20 @@ def process_forms_tab():
                                 conn.commit()
                             elif type_elem == 'condicaoH':
                                 result = process_conditional_element(cursor, element)
+                                cursor.execute("""
+                                    UPDATE forms_tab 
+                                    SET value_element = ? 
+                                    WHERE name_element = ? AND user_id = ?
+                                """, (result, name, st.session_state.user_id))
+                                conn.commit()
+                            elif type_elem == 'call_insumosH':
+                                result = call_insumos(cursor, element)
+                                cursor.execute("""
+                                    UPDATE forms_tab 
+                                    SET value_element = ? 
+                                    WHERE name_element = ? AND user_id = ?
+                                """, (result, name, st.session_state.user_id))
+                                conn.commit()
                             continue
 
                         # Processamento normal para elementos visíveis
@@ -409,12 +446,12 @@ def process_forms_tab():
                                 # Trata o valor atual sempre com 2 casas decimais na exibição
                                 if value is not None:
                                     try:
-                                        # Formata o número sempre com 2 casas decimais
-                                        current_value = f"{float(value):.2f}"
+                                        # Converte o valor do banco (já em formato BR) para exibição
+                                        current_value = str(value) if ',' in str(value) else f"{float(str(value).replace('.', ',')):.2f}"
                                     except:
-                                        current_value = "0.00"
+                                        current_value = "0,00"
                                 else:
-                                    current_value = "0.00"
+                                    current_value = "0,00"
                                 
                                 input_value = st.text_input(
                                     msg,
@@ -423,11 +460,13 @@ def process_forms_tab():
                                 )
                                 
                                 try:
-                                    cleaned_input = input_value.strip().replace(',', '.')
-                                    numeric_value = float(cleaned_input) if cleaned_input else 0.0
-                                    st.session_state.form_values[name] = numeric_value
+                                    # Remove pontos de milhar e mantém vírgula decimal
+                                    cleaned_input = input_value.strip().replace('.', '')
+                                    # Armazena o valor no formato BR
+                                    numeric_value = cleaned_input if ',' in cleaned_input else f"{float(cleaned_input):.2f}".replace('.', ',')
                                     
-                                    if abs(numeric_value - (float(value) if value is not None else 0)) > 1e-10:
+                                    # Compara valores no formato BR
+                                    if numeric_value != str(value):
                                         cursor.execute("""
                                             UPDATE forms_tab 
                                             SET value_element = ? 
@@ -436,10 +475,12 @@ def process_forms_tab():
                                         conn.commit()
                                         st.rerun()
                                     
+                                    # Para cálculos internos, converte para float
+                                    st.session_state.form_values[name] = float(numeric_value.replace(',', '.'))
+                                    
                                 except ValueError:
                                     st.error(f"Por favor, insira apenas números em {msg}")
-                                    numeric_value = float(value) if value is not None else 0.0
-                                    st.session_state.form_values[name] = numeric_value
+                                    st.session_state.form_values[name] = float(str(value).replace(',', '.')) if value is not None else 0.0
                             
                             except Exception as e:
                                 st.error(f"Erro ao processar input: {str(e)}")
@@ -467,17 +508,20 @@ def process_forms_tab():
 
                                 result = calculate_formula(math_elem, st.session_state.form_values, cursor)
                                 
+                                # Converte resultado para formato BR antes de salvar
+                                result_br = f"{result:.2f}".replace('.', ',')
+                                
                                 cursor.execute("""
                                     UPDATE forms_tab 
                                     SET value_element = ? 
                                     WHERE name_element = ? AND user_id = ?
-                                """, (result, name, st.session_state.user_id))
+                                """, (result_br, name, st.session_state.user_id))
                                 conn.commit()
                                 
                                 st.markdown(f"""
                                     <div style='text-align: left;'>
                                         <p style='font-size: {FONT_SIZES[font_size]}; margin-bottom: 0;'>{display_msg}</p>
-                                        <p style='font-size: {FONT_SIZES[font_size]}; font-weight: bold;'>{result:.2f}</p>
+                                        <p style='font-size: {FONT_SIZES[font_size]}; font-weight: bold;'>{result_br}</p>
                                     </div>
                                     """, 
                                     unsafe_allow_html=True
@@ -513,11 +557,14 @@ def process_forms_tab():
                                 # Processa o elemento condicional
                                 result = process_conditional_element(cursor, element)
                                 
+                                # Converte resultado para formato BR antes de salvar
+                                result_br = f"{result:.2f}".replace('.', ',')
+                                
                                 # Aplica estilo customizado usando HTML/CSS
                                 st.markdown(f"""
                                     <div style='text-align: center;'>
                                         <p style='font-size: {FONT_SIZES[font_size]}; margin-bottom: 0;'>{display_msg}</p>
-                                        <p style='font-size: {FONT_SIZES[font_size]}; font-weight: bold;'>{result:.2f}</p>
+                                        <p style='font-size: {FONT_SIZES[font_size]}; font-weight: bold;'>{result_br}</p>
                                     </div>
                                     """, 
                                     unsafe_allow_html=True
@@ -595,19 +642,22 @@ def process_forms_tab():
                                 # Calcula o resultado da fórmula de data
                                 result = calculate_formula(math_elem, st.session_state.form_values, cursor)
                                 
+                                # Converte resultado para formato BR antes de salvar
+                                result_br = f"{result:.2f}".replace('.', ',')
+                                
                                 # Atualiza o value_element no banco
                                 cursor.execute("""
                                     UPDATE forms_tab 
                                     SET value_element = ? 
                                     WHERE name_element = ? AND user_id = ?
-                                """, (result, name, st.session_state.user_id))
+                                """, (result_br, name, st.session_state.user_id))
                                 conn.commit()
                                 
                                 # Aplica estilo customizado usando HTML/CSS
                                 st.markdown(f"""
                                     <div style='text-align: left;'>
                                         <p style='font-size: {FONT_SIZES[font_size]}; margin-bottom: 0;'>{display_msg}</p>
-                                        <p style='font-size: {FONT_SIZES[font_size]}; font-weight: bold;'>{result:.1f} meses</p>
+                                        <p style='font-size: {FONT_SIZES[font_size]}; font-weight: bold;'>{result_br}</p>
                                     </div>
                                     """, 
                                     unsafe_allow_html=True
@@ -621,90 +671,6 @@ def process_forms_tab():
 
         # Separador
         st.divider()
-        
-        # Lista de registros ADM
-        with st.expander("Lista de Registros ADM"):
-            if st.button("Atualizar Dados"):
-                st.rerun()
-
-            table_choice = st.selectbox(
-                "Selecione a tabela:",
-                ["forms_tab", "forms_insumos", "resultados_tab"],
-                key="table_selector"
-            )
-
-            # Buscar dados com base na tabela selecionada
-            if table_choice == "forms_tab":
-                cursor.execute("""
-                    SELECT ID_element, name_element, type_element, math_element, msg_element,
-                           value_element, select_element, str_element, e_col, e_row, user_id
-                    FROM forms_tab
-                    ORDER BY user_id, e_row, e_col
-                """)
-                columns = [
-                    'ID_element', 'name_element', 'type_element', 'math_element', 'msg_element',
-                    'value_element', 'select_element', 'str_element', 'e_col', 'e_row', 'user_id'
-                ]
-            elif table_choice == "resultados_tab":
-                cursor.execute("""
-                    SELECT ID_element, name_element, type_element, math_element, msg_element,
-                           value_element, select_element, str_element, e_col, e_row, user_id
-                    FROM resultados_tab
-                    ORDER BY user_id, e_row, e_col
-                """)
-                columns = [
-                    'ID_element', 'name_element', 'type_element', 'math_element', 'msg_element',
-                    'value_element', 'select_element', 'str_element', 'e_col', 'e_row', 'user_id'
-                ]
-            else:  # forms_insumos
-                cursor.execute("""
-                    SELECT ID_element, name_element, type_element, math_element, msg_element,
-                           value_element, select_element, str_element, e_col, e_row
-                    FROM forms_insumos
-                    ORDER BY e_row, e_col
-                """)
-                columns = [
-                    'ID_element', 'name_element', 'type_element', 'math_element', 'msg_element',
-                    'value_element', 'select_element', 'str_element', 'e_col', 'e_row'
-                ]
-
-            elements = cursor.fetchall()
-
-            # Criar DataFrame
-            df = pd.DataFrame(elements, columns=columns)
-            
-            # Formata mantendo as casas decimais originais do número e usando vírgula como separador decimal
-            def format_value(x):
-                try:
-                    if x is None:
-                        return "0"
-                    # Converte para float primeiro para garantir que é um número
-                    num = float(x)
-                    # Converte para string mantendo apenas as casas decimais significativas
-                    str_num = f"{num}"
-                    # Remove zeros à direita após o ponto decimal, mas mantém um zero se for número inteiro
-                    if '.' in str_num:
-                        str_num = str_num.rstrip('0').rstrip('.')
-                    # Substitui ponto por vírgula para padrão BR
-                    str_num = str_num.replace('.', ',')
-                    return str_num
-                except:
-                    return str(x) if x else "0"
-                    
-            df['value_element'] = df['value_element'].apply(format_value)
-
-            # Mostrar DataFrame
-            st.dataframe(df)
-            
-            # Botão para download em TXT
-            if not df.empty:
-                txt_data = df.to_csv(sep='\t', index=False, encoding='cp1252')
-                st.download_button(
-                    label="Download TXT",
-                    data=txt_data,
-                    file_name=f"{table_choice}.txt",
-                    mime="text/plain"
-                )
 
     except Exception as e:
         st.error(f"Erro ao processar formulário: {str(e)}")
@@ -750,22 +716,24 @@ def call_insumos(cursor, element):
                 
             # Processa o valor do math_element
             if '/' in math_value:  # Se for uma fração
-                num, den = map(float, math_value.split('/'))
+                num, den = map(lambda x: float(x.replace(',', '.')), math_value.split('/'))
                 if den == 0:
                     st.error(f"Divisão por zero encontrada em '{math_value}'")
                     return 0.0
                 final_value = num / den
             else:
-                final_value = float(math_value)
+                final_value = float(math_value.replace(',', '.'))
             
-            # Atualiza o valor no banco como REAL
+            # Converte para formato BR antes de salvar
+            final_value_br = f"{final_value:.2f}".replace('.', ',')
+            
             cursor.execute("""
                 UPDATE forms_tab 
-                SET value_element = CAST(? AS REAL)
+                SET value_element = ?
                 WHERE name_element = ? AND user_id = ?
-            """, (final_value, name, st.session_state.user_id))
+            """, (final_value_br, name, st.session_state.user_id))
             
-            return final_value
+            return final_value  # Retorna float para cálculos
             
         except ValueError as e:
             st.error(f"Valor inválido '{result[0]}' para a referência '{str_value}': {str(e)}")

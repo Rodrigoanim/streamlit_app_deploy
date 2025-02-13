@@ -1,0 +1,16 @@
+{
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "name": "calcpc",
+            "database": ".\\calcpc.db"
+        },
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "name": "banco_calcpc",
+            "database": ".\\calcpc.db"
+        }
+    ]
+}

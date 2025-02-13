@@ -1,10 +1,11 @@
 # Arquivo: main.py
-# Data: 06/02/2025
+# Data: 12/02/2025 - 20:43
 # IDE Cursor - claude 3.5 sonnet
 # comando: streamlit run main.py
 
 import streamlit as st
 import sqlite3
+from paginas.form_model import process_forms_tab
 
 # Configuração da página - deve ser a primeira chamada do Streamlit
 st.set_page_config(
@@ -69,61 +70,38 @@ def main():
                 del st.session_state[key]
         st.rerun()
 
-    st.sidebar.title("Navegação")
-
-    # Menu options - only showing active options
-    page = st.sidebar.radio("Menu", [
-        "Início", 
-        "Tipo de Café",
-        "Resultados",    # Nova opção adicionada
-        # "Adm_User",        # Temporarily disabled
-        # "Relatórios",      # Temporarily disabled
-        # "Adm_Forms"        # Temporarily disabled
-    ])
-
-    if page == "Início":
-        st.write("Selecione uma opção no menu à esquerda.")
-
-    elif page == "Tipo de Café":
-        if "user_id" not in st.session_state:
-            st.error("Erro: ID do usuário não encontrado na sessão.")
-            st.stop()
-        from paginas import form_model
-        form_model.process_forms_tab()
-
-    elif page == "Resultados":    # Nova seção adicionada
-        if "user_id" not in st.session_state:
-            st.error("Erro: ID do usuário não encontrado na sessão.")
-            st.stop()
-        from paginas import resultados
-        resultados.process_resultados_tab()
-
-    # # Temporarily disabled - Adm_User section
-    # elif page == "Adm_User":
-    #     if user_profile == "Adm":
-    #         from paginas import administracao
-    #         administracao.app()
-    #     else:
-    #         st.error("Você não tem permissão para acessar esta página.")
-
-    # # Temporarily disabled - Relatórios section
-    # elif page == "Relatórios":
-    #     if "user_id" not in st.session_state:
-    #         st.error("Erro: ID do usuário não encontrado na sessão.")
-    #         st.stop()
-    #     from paginas import reports
-    #     reports.app()
-        
-    # # Temporarily disabled - Adm_Forms section
-    # elif page == "Adm_Forms":
-    #     if user_profile == "Adm":
-    #         if "user_id" not in st.session_state:
-    #             st.error("Erro: ID do usuário não encontrado na sessão.")
-    #             st.stop()
-    #         from paginas import _crud_forms_tab
-    #         _crud_forms_tab.app()
-    #     else:
-    #         st.error("Você não tem permissão para acessar esta página.")
+    st.sidebar.title("Menu de Navegação")
+    
+    menu_options = ["Tipo do Café", "Moagem e Torrefação", "Embalagem", "Resultados"]
+    
+    # Modificando a verificação para ser case-insensitive
+    if user_profile and user_profile.lower() == "adm":
+        menu_options.append("Administração")
+    
+    section = st.sidebar.radio(
+        "Selecione o Formulário:",
+        menu_options,
+        key="menu_selection"
+    )
+    
+    # Mapeamento das opções do menu para os valores da coluna section
+    section_map = {
+        "Tipo do Café": "cafe",
+        "Moagem e Torrefação": "moagem",
+        "Embalagem": "embalagem",
+        "Resultados": "resultados",
+        "Administração": "crud"
+    }
+    
+    # Processa a seção selecionada
+    if section in ["Tipo do Café", "Moagem e Torrefação", "Embalagem"]:
+        process_forms_tab(section_map[section])
+    elif section == "Resultados":
+        from paginas.resultados import show_results
+        show_results()
+    elif section == "Administração":
+        from paginas.crude import show_crud
+        show_crud()
 
 if __name__ == "__main__":
     main()
