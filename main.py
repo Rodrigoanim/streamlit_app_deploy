@@ -1,5 +1,5 @@
 # Arquivo: main.py
-# Data: 17/02/2025 - Hora: 14h25
+# Data: 17/02/2025 - Hora: 17h10
 # IDE Cursor - claude 3.5 sonnet
 # comando: streamlit run main.py
 
@@ -40,7 +40,7 @@ def authenticate_user():
         """, unsafe_allow_html=True)
         
         # Login na sidebar
-        st.sidebar.title("Login")
+        st.sidebar.title("Login - versão 17_01")
         email = st.sidebar.text_input("E-mail")
         password = st.sidebar.text_input("Senha", type="password")
         
