@@ -7,6 +7,7 @@ import streamlit as st
 import sqlite3
 from paginas.form_model import process_forms_tab
 from datetime import datetime
+import time
 
 # Configuração da página - deve ser a primeira chamada do Streamlit
 st.set_page_config(
@@ -38,11 +39,16 @@ def authenticate_user():
             <p style='text-align: center; font-size: 20px;'>Faça login para acessar o sistema</p>
         """, unsafe_allow_html=True)
         
-        # Login na sidebar (mantido como estava)
+        # Login na sidebar
         st.sidebar.title("Login")
         email = st.sidebar.text_input("E-mail")
         password = st.sidebar.text_input("Senha", type="password")
-        if st.sidebar.button("Entrar"):
+        
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            login_button = st.button("Entrar")
+        
+        if login_button:
             conn = sqlite3.connect("calcpc.db")
             cursor = conn.cursor()
             cursor.execute("""
@@ -56,10 +62,10 @@ def authenticate_user():
                 st.session_state["user_profile"] = user[2]
                 st.session_state["user_id"] = user[1]
                 st.session_state["user_name"] = user[3]
-                st.success(f"Login bem-sucedido! Bem-vindo, {user[3]}.")
-                st.rerun()  # Adicionar rerun para atualizar a página após o login
+                st.sidebar.success(f"Login bem-sucedido! Bem-vindo, {user[3]}.")
+                st.rerun()
             else:
-                st.error("E-mail ou senha inválidos.")
+                st.sidebar.error("E-mail ou senha inválidos.")
 
     return st.session_state.get("logged_in", False), st.session_state.get("user_profile", None)
 
@@ -138,6 +144,10 @@ def main():
     if not logged_in:
         st.stop()
     
+    # Armazenar página anterior para comparação
+    if "previous_page" not in st.session_state:
+        st.session_state["previous_page"] = None
+    
     # Titulo da página
     st.title("Simulador da Pegada de Carbono do Café Torrado")
 
@@ -169,7 +179,12 @@ def main():
         menu_options,
         key="menu_selection"
     )
-    
+
+    # Verificar se houve mudança de página
+    if st.session_state.get("previous_page") != section:
+        save_current_form_data()
+        st.session_state["previous_page"] = section
+
     # Mapeamento das opções do menu para os valores da coluna section
     section_map = {
         "Form - Tipo do Café": "cafe",
@@ -202,6 +217,93 @@ def main():
     elif section == "Administração":
         from paginas.crude import show_crud
         show_crud()
+
+def save_current_form_data():
+    """Salva os dados do formulário atual quando houver mudança de página"""
+    if "form_data" in st.session_state:
+        with st.spinner('Salvando dados...'):
+            conn = sqlite3.connect("calcpc.db")
+            cursor = conn.cursor()
+            
+            # Criar tabelas se não existirem
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS form_cafe (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT,
+                    data_input TIMESTAMP,
+                    tipo_cafe TEXT,
+                    quantidade FLOAT,
+                    FOREIGN KEY (user_id) REFERENCES usuarios(user_id)
+                )
+            """)
+            
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS form_moagem (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT,
+                    data_input TIMESTAMP,
+                    tipo_moagem TEXT,
+                    temperatura FLOAT,
+                    FOREIGN KEY (user_id) REFERENCES usuarios(user_id)
+                )
+            """)
+            
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS form_embalagem (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT,
+                    data_input TIMESTAMP,
+                    tipo_embalagem TEXT,
+                    peso FLOAT,
+                    FOREIGN KEY (user_id) REFERENCES usuarios(user_id)
+                )
+            """)
+            
+            previous_page = st.session_state.get("previous_page", "")
+            
+            if "Form - Tipo do Café" in previous_page:
+                tipo_cafe = st.session_state.get("form_data", {}).get("tipo_cafe")
+                quantidade = st.session_state.get("form_data", {}).get("quantidade")
+                
+                if tipo_cafe and quantidade is not None:  # Verifica se os dados existem
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO form_cafe 
+                        (user_id, data_input, tipo_cafe, quantidade)
+                        VALUES (?, datetime('now'), ?, ?)
+                    """, (
+                        st.session_state["user_id"],
+                        tipo_cafe,
+                        quantidade
+                    ))
+            
+            elif "Form - Moagem e Torrefação" in previous_page:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO form_moagem 
+                    (user_id, data_input, tipo_moagem, temperatura)
+                    VALUES (?, datetime('now'), ?, ?)
+                """, (
+                    st.session_state["user_id"],
+                    st.session_state.get("form_data", {}).get("tipo_moagem"),
+                    st.session_state.get("form_data", {}).get("temperatura")
+                ))
+            
+            elif "Form - Embalagem" in previous_page:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO form_embalagem 
+                    (user_id, data_input, tipo_embalagem, peso)
+                    VALUES (?, datetime('now'), ?, ?)
+                """, (
+                    st.session_state["user_id"],
+                    st.session_state.get("form_data", {}).get("tipo_embalagem"),
+                    st.session_state.get("form_data", {}).get("peso")
+                ))
+            
+            conn.commit()
+            conn.close()
+            # Limpar os dados do formulário após salvar
+            st.session_state["form_data"] = {}
+            time.sleep(0.5)  # Pequeno delay para feedback visual
+        st.success('Dados salvos com sucesso!')
 
 if __name__ == "__main__":
     main()

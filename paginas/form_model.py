@@ -676,6 +676,46 @@ def process_forms_tab(section='cafe'):
         if conn:
             conn.close()
 
+    # Inicializar form_data se não existir
+    if "form_data" not in st.session_state:
+        st.session_state["form_data"] = {}
+    
+    if section == "cafe":
+        # Carregar último valor salvo (opcional)
+        conn = sqlite3.connect("calcpc.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT tipo_cafe, quantidade 
+            FROM form_cafe 
+            WHERE user_id = ? 
+            ORDER BY data_input DESC 
+            LIMIT 1
+        """, (st.session_state["user_id"],))
+        ultimo_valor = cursor.fetchone()
+        conn.close()
+        
+        # Usar último valor como padrão se existir
+        tipo_cafe_default = ultimo_valor[0] if ultimo_valor else None
+        quantidade_default = ultimo_valor[1] if ultimo_valor else 0.0
+        
+        # Criar os inputs e salvar no session_state
+        tipo_cafe = st.selectbox(
+            "Tipo de Café",
+            ["Arábica", "Robusta"],
+            index=["Arábica", "Robusta"].index(tipo_cafe_default) if tipo_cafe_default else 0
+        )
+        quantidade = st.number_input(
+            "Quantidade (kg)",
+            min_value=0.0,
+            value=quantidade_default
+        )
+        
+        # Atualizar form_data no session_state
+        st.session_state["form_data"].update({
+            "tipo_cafe": tipo_cafe,
+            "quantidade": quantidade
+        })
+
 def call_insumos(cursor, element):
     """
     Busca valor de referência na tabela forms_insumos e atualiza value_element.
