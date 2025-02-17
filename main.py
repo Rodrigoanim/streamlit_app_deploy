@@ -26,6 +26,19 @@ def authenticate_user():
         st.session_state["user_id"] = None
 
     if not st.session_state["logged_in"]:
+        # Criar uma coluna centralizada
+        col1, col2, col3 = st.columns([1, 20, 1])
+        
+        with col2:
+            # Imagem de capa usando pegada.jpg da raiz
+            st.image("pegada.jpg", use_container_width=True)
+            
+        st.markdown("""
+            <h1 style='text-align: center;'>Simulador da Pegada de<br>Carbono do Café Torrado</h1>
+            <p style='text-align: center; font-size: 20px;'>Faça login para acessar o sistema</p>
+        """, unsafe_allow_html=True)
+        
+        # Login na sidebar (mantido como estava)
         st.sidebar.title("Login")
         email = st.sidebar.text_input("E-mail")
         password = st.sidebar.text_input("Senha", type="password")
@@ -44,6 +57,7 @@ def authenticate_user():
                 st.session_state["user_id"] = user[1]
                 st.session_state["user_name"] = user[3]
                 st.success(f"Login bem-sucedido! Bem-vindo, {user[3]}.")
+                st.rerun()  # Adicionar rerun para atualizar a página após o login
             else:
                 st.error("E-mail ou senha inválidos.")
 
