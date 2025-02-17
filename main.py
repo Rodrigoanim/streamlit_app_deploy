@@ -53,7 +53,7 @@ def show_welcome():
     """Exibe a tela de boas-vindas com informações do usuário"""
     st.title("Bem-vindo ao Sistema!")
     
-    # Buscar dados do usuário e contagem de formulários
+    # Buscar dados do usuário
     conn = sqlite3.connect("calcpc.db")
     cursor = conn.cursor()
     cursor.execute("""
@@ -63,12 +63,7 @@ def show_welcome():
     """, (st.session_state.get('user_id'),))
     user_info = cursor.fetchone()
     
-    cursor.execute("""
-        SELECT COUNT(*) 
-        FROM forms_tab 
-        WHERE user_id = ?
-    """, (st.session_state.get('user_id'),))
-    form_count = cursor.fetchone()[0]
+    # Removemos a consulta de contagem de formulários
     conn.close()
     
     empresa = user_info[1] if user_info[1] is not None else "Não informada"
@@ -91,13 +86,12 @@ def show_welcome():
             </div>
         """, unsafe_allow_html=True)
     
-    # Coluna 2: Atividades
+    # Coluna 2: Atividades (simplificada)
     with col2:
         st.markdown(f"""
             <div style="background-color: #e8f8ef; padding: 20px; border-radius: 8px;">
                 <h3 style="color: #2c3e50; font-size: 20px;">Suas Atividades</h3>
                 <div style="color: #34495e; font-size: 16px;">
-                    <p>Formulários Preenchidos: {form_count}</p>
                     <p>Data Atual: {datetime.now().strftime('%d/%m/%Y')}</p>
                 </div>
             </div>
