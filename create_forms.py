@@ -697,14 +697,16 @@ def create_database_usuarios():
             conn = sqlite3.connect(DB_NAME)
             cursor = conn.cursor()
 
-        # Cria tabela usuarios com estrutura específica
+        # Cria tabela usuarios com estrutura atualizada incluindo user_id
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER UNIQUE NOT NULL,
                 nome TEXT NOT NULL,
                 email TEXT UNIQUE NOT NULL,
                 senha TEXT NOT NULL,
-                perfil TEXT NOT NULL
+                perfil TEXT NOT NULL,
+                empresa TEXT
             );
         """)
 
@@ -734,13 +736,15 @@ def create_database_usuarios():
             for _, row in df.iterrows():
                 try:
                     cursor.execute("""
-                        INSERT INTO usuarios (nome, email, senha, perfil)
-                        VALUES (?, ?, ?, ?)
+                        INSERT INTO usuarios (user_id, nome, email, senha, perfil, empresa)
+                        VALUES (?, ?, ?, ?, ?, ?)
                     """, (
+                        int(row['user_id']),
                         str(row['nome']).strip(),
                         str(row['email']).strip(),
                         str(row['senha']).strip(),
-                        str(row['perfil']).strip()
+                        str(row['perfil']).strip(),
+                        str(row['empresa']).strip() if 'empresa' in row else None
                     ))
                     print(f"Usuário inserido: {row['nome']}")
                 except Exception as e:

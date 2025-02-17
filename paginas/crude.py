@@ -121,7 +121,7 @@ def show_crud():
                             "perfil",
                             width="medium",
                             required=True,
-                            options=["Admin", "Usuario", "Gestor"]
+                            options=["adm", "usuario", "Gestor"]
                         )
                     elif col_name == "email":
                         column_config[col_name] = st.column_config.TextColumn(

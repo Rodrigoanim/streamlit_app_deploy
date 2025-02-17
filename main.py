@@ -1,5 +1,5 @@
 # Arquivo: main.py
-# Data: 16/02/2025 - Hora: 14h25
+# Data: 17/02/2025 - Hora: 14h25
 # IDE Cursor - claude 3.5 sonnet
 # comando: streamlit run main.py
 
@@ -33,17 +33,17 @@ def authenticate_user():
             conn = sqlite3.connect("calcpc.db")
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT ID_User, perfil, nome_usuario FROM Usuarios WHERE email = ? AND senha = ?
+                SELECT id, user_id, perfil, nome FROM usuarios WHERE email = ? AND senha = ?
             """, (email, password))
             user = cursor.fetchone()
             conn.close()
 
             if user:
                 st.session_state["logged_in"] = True
-                st.session_state["user_profile"] = user[1]
-                st.session_state["user_id"] = user[0]
-                st.session_state["user_name"] = user[2]
-                st.success(f"Login bem-sucedido! Bem-vindo, {user[2]}.")
+                st.session_state["user_profile"] = user[2]
+                st.session_state["user_id"] = user[1]
+                st.session_state["user_name"] = user[3]
+                st.success(f"Login bem-sucedido! Bem-vindo, {user[3]}.")
             else:
                 st.error("E-mail ou senha inválidos.")
 
@@ -59,7 +59,7 @@ def show_welcome():
     cursor.execute("""
         SELECT email, empresa 
         FROM usuarios 
-        WHERE ID_User = ?
+        WHERE user_id = ?
     """, (st.session_state.get('user_id'),))
     user_info = cursor.fetchone()
     
