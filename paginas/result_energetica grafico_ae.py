@@ -1,6 +1,6 @@
-# Arquivo: resultados.py
-# Data: 14/02/2025 08:00
-# Pagina de resultados - Dashboard
+# Arquivo: result_energetica.py
+# Data: 16/02/2025 17:41
+# Pagina de Análise Energética - Torrefação
 
 import streamlit as st
 import sqlite3
@@ -76,21 +76,20 @@ def pula_linha(cursor, element):
 
 def new_user(cursor, user_id):
     """
-    Cria registros iniciais para um novo usuário na tabela forms_resultados,
+    Cria registros iniciais para um novo usuário na tabela forms_energetica,
     copiando os dados do template (user_id = 0)
     """
     try:
         # Verifica se já existem registros para o usuário
         cursor.execute("""
-            SELECT COUNT(*) FROM forms_resultados 
+            SELECT COUNT(*) FROM forms_energetica 
             WHERE user_id = ?
         """, (user_id,))
         
         if cursor.fetchone()[0] == 0:
             # Copia dados do template (user_id = 0) para o novo usuário
-            # value_element já é REAL, então não precisa de conversão
             cursor.execute("""
-                INSERT INTO forms_resultados (
+                INSERT INTO forms_energetica (
                     user_id, name_element, type_element, math_element,
                     msg_element, value_element, select_element, str_element,
                     e_col, e_row, section
@@ -99,7 +98,7 @@ def new_user(cursor, user_id):
                     ?, name_element, type_element, math_element,
                     msg_element, value_element, select_element, str_element,
                     e_col, e_row, section
-                FROM forms_resultados
+                FROM forms_energetica
                 WHERE user_id = 0
             """, (user_id,))
             
@@ -121,9 +120,8 @@ def call_dados(cursor, element):
         user_id = element[10]    # user_id
         
         if type_elem == 'call_dados':
-            # Busca o valor com CAST para garantir precisão decimal
             cursor.execute("""
-                SELECT CAST(value_element AS DECIMAL(20, 8))
+                SELECT value_element 
                 FROM forms_tab 
                 WHERE name_element = ? 
                 AND user_id = ?
@@ -134,12 +132,11 @@ def call_dados(cursor, element):
             result = cursor.fetchone()
             
             if result:
-                value = float(result[0]) if result[0] is not None else 0.0
+                value = result[0]
                 
-                # Atualiza usando CAST para manter a precisão
                 cursor.execute("""
-                    UPDATE forms_resultados 
-                    SET value_element = CAST(? AS DECIMAL(20, 8))
+                    UPDATE forms_energetica 
+                    SET value_element = ? 
                     WHERE name_element = ? 
                     AND user_id = ?
                 """, (value, name, user_id))
@@ -153,7 +150,7 @@ def call_dados(cursor, element):
 
 def grafico_barra(cursor, element):
     """
-    Cria um gráfico de barras verticais com dados da tabela forms_resultados.
+    Cria um gráfico de barras verticais com dados da tabela forms_energetica.
     
     Args:
         cursor: Conexão com o banco de dados
@@ -196,7 +193,7 @@ def grafico_barra(cursor, element):
             # Primeiro busca o valor
             cursor.execute("""
                 SELECT value_element 
-                FROM forms_resultados 
+                FROM forms_energetica 
                 WHERE name_element = ? 
                 AND user_id = ?
                 ORDER BY ID_element DESC
@@ -209,7 +206,7 @@ def grafico_barra(cursor, element):
             # Depois busca a cor no registro do gráfico atual
             cursor.execute("""
                 SELECT section 
-                FROM forms_resultados 
+                FROM forms_energetica 
                 WHERE type_element = 'grafico'
                 AND select_element LIKE ?
                 AND user_id = ?
@@ -281,7 +278,7 @@ def grafico_barra(cursor, element):
 
 def tabela_dados(cursor, element):
     """
-    Cria uma tabela estilizada com dados da tabela forms_resultados.
+    Cria uma tabela estilizada com dados da tabela forms_energetica.
     Tabela transposta (vertical) com valores em vez de nomes.
     
     Args:
@@ -334,7 +331,7 @@ def tabela_dados(cursor, element):
         for type_name in type_names:
             cursor.execute("""
                 SELECT value_element 
-                FROM forms_resultados 
+                FROM forms_energetica 
                 WHERE name_element = ? 
                 AND user_id = ?
                 ORDER BY ID_element DESC
@@ -397,12 +394,12 @@ def subtitulo():
         <h2 style='
             text-align: Left;
             font-size: 36px;
-            color: #000000;
-            margin-top: 10px;
-            margin-bottom: 30px;
+            color: #4A4A4A;
+            margin-top: 4px;
+            margin-bottom: 25px;
             font-family: sans-serif;
             font-weight: 500;
-        '>Resultado das Simulações da Empresa</h2>
+        '>Análise Energética - Torrefação</h2>
     """, unsafe_allow_html=True)
 
 def show_results():
@@ -416,7 +413,7 @@ def show_results():
             
         user_id = st.session_state.user_id
         
-        # Adiciona o subtítulo antes do conteúdo principal
+        # Adiciona o subtítulo no início da página
         subtitulo()
         
         conn = sqlite3.connect(DB_NAME)
@@ -430,10 +427,10 @@ def show_results():
             SELECT name_element, type_element, math_element, msg_element,
                    value_element, select_element, str_element, e_col, e_row,
                    section, user_id
-            FROM forms_resultados
+            FROM forms_energetica
             WHERE (type_element = 'titulo' OR type_element = 'pula linha' 
                   OR type_element = 'call_dados' OR type_element = 'grafico'
-                  OR type_element = 'tabela')
+                  OR type_element = 'tabela' OR type_element = 'grafico_ae')
             AND user_id = ?
             ORDER BY e_row, e_col
         """, (user_id,))
@@ -471,6 +468,8 @@ def show_results():
                                 grafico_barra(cursor, element)
                             elif element[1] == 'tabela':
                                 tabela_dados(cursor, element)
+                            elif element[1] == 'grafico_ae':
+                                grafico_ae(cursor, element)
                     
                     # Elementos da coluna 2 (e_col > 3)
                     else:
@@ -485,11 +484,150 @@ def show_results():
                                 grafico_barra(cursor, element)
                             elif element[1] == 'tabela':
                                 tabela_dados(cursor, element)
+                            elif element[1] == 'grafico_ae':
+                                grafico_ae(cursor, element)
         
         conn.close()
         
     except Exception as e:
         st.error(f"Erro ao carregar resultados: {str(e)}")
+
+def grafico_ae(cursor, element):
+    """
+    Cria um gráfico de barras agrupadas para análise energética com 3 conjuntos de dados.
+    
+    Args:
+        cursor: Conexão com o banco de dados
+        element: Tupla com os dados do elemento tipo 'grafico_ae'
+        
+    Configurações do elemento:
+        type_element: 'grafico_ae'
+        msg_element: título do gráfico
+        math_element: número de colunas por conjunto
+        select_element: grupos de type_names separados por | (ex: 'N1,N2,N3,N4|M1,M2,M3,M4|T1,T2,T3,T4')
+        str_element: rótulos separados por | (ex: 'Demanda elétrica|Demanda térmica|Total')
+    """
+    try:
+        type_elem = element[1]   # type_element
+        msg = element[3]         # msg_element
+        select = element[5]      # select_element
+        rotulos = element[6]     # str_element
+        user_id = element[10]    # user_id
+        
+        if type_elem != 'grafico_ae':
+            return
+            
+        # Validações iniciais
+        if not select or not rotulos:
+            st.error("Configuração incompleta do gráfico: select ou rótulos vazios")
+            return
+            
+        # Separa os grupos de dados e rótulos
+        grupos_dados = [grupo.split(',') for grupo in select.split('|')]
+        categorias = rotulos.split('|')
+        
+        # Define as séries de dados (Simulação, Menor valor setorial, etc.)
+        series = ['Simulação', 'Menor valor setorial', 'Média setorial', 'Maior valor setorial']
+        
+        # Dicionário para armazenar os valores
+        dados = {serie: [] for serie in series}
+        
+        # Busca os valores para cada grupo
+        for grupo in grupos_dados:
+            for i, type_name in enumerate(grupo):
+                cursor.execute("""
+                    SELECT value_element 
+                    FROM forms_energetica 
+                    WHERE name_element = ? 
+                    AND user_id = ?
+                    ORDER BY ID_element DESC
+                    LIMIT 1
+                """, (type_name.strip(), user_id))
+                
+                result = cursor.fetchone()
+                valor = result[0] if result and result[0] is not None else 0.0
+                dados[series[i]].append(valor)
+        
+        # Criar DataFrame para o plotly
+        df_data = []
+        cores = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']  # Cores para cada série
+        
+        for i, serie in enumerate(series):
+            for j, categoria in enumerate(categorias):
+                df_data.append({
+                    'Categoria': categoria,
+                    'Valor': dados[serie][j],
+                    'Série': serie
+                })
+        
+        df = pd.DataFrame(df_data)
+        
+        # Criar o gráfico usando plotly express
+        fig = px.bar(
+            df,
+            x='Categoria',
+            y='Valor',
+            color='Série',
+            barmode='group',
+            text=df['Valor'].apply(lambda x: format_br_number(x)),
+            title=None,
+            color_discrete_sequence=cores
+        )
+        
+        # Configurar o layout
+        fig.update_layout(
+            xaxis_title=None,
+            yaxis_title="MJ/1000kg de café",
+            height=500,
+            width=None,
+            legend_title=None,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.3,
+                xanchor="center",
+                x=0.5
+            ),
+            xaxis=dict(
+                tickfont=dict(size=14),
+                title_font=dict(size=16)
+            ),
+            yaxis=dict(
+                tickfont=dict(size=14),
+                title_font=dict(size=16),
+                tickformat=",.",
+                separatethousands=True
+            ),
+            margin=dict(t=60, b=100)  # Aumenta margem inferior para legenda
+        )
+        
+        # Configurar o texto nas barras
+        fig.update_traces(
+            textposition='auto',
+            textfont=dict(size=12)
+        )
+        
+        # Adicionar o título
+        st.markdown(f"""
+            <h3 style='
+                text-align: center;
+                font-size: 24px;
+                font-weight: 600;
+                color: #000000;
+                margin-top: 20px;
+                margin-bottom: 30px;
+                padding: 10px;
+                font-family: sans-serif;
+                letter-spacing: 0.5px;
+                border-bottom: 2px solid #e8f5e9;
+            '>{msg}</h3>
+        """, unsafe_allow_html=True)
+        
+        # Exibir o gráfico
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        
+    except Exception as e:
+        st.error(f"Erro ao criar gráfico AE: {str(e)}")
 
 if __name__ == "__main__":
     show_results()

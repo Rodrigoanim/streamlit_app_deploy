@@ -1,5 +1,5 @@
 # Arquivo: form_model.py
-# Data: 13/02/2025 - Hora: 13H42
+# Data: 15/02/2025 - Hora: 14H42
 # CursorAI - claude 3.5 sonnet - Composer
 # 3x formularios de entrada de dados
 
@@ -10,6 +10,7 @@ import re
 
 # Nome do banco de dados - calc.db
 DB_NAME = "calcpc.db"
+MAX_COLUMNS = 5  # Número máximo de colunas no layout
 
 def date_to_days(date_str):
     """
@@ -116,8 +117,8 @@ def calculate_formula(formula, values, cursor):
                 
                 return max(0, meses)  # Garante que não retorne valor negativo
         
-        # Processa cada referência na fórmula
-        cell_refs = re.findall(r'(?:Insumos!)?[A-Z][0-9]+', processed_formula)
+        # Processa referências na fórmula
+        cell_refs = re.findall(r'(?:Insumos!)?[A-Z]{1,2}[0-9]+', processed_formula)
         
         for ref in cell_refs:
             float_value = get_element_value(
@@ -332,8 +333,8 @@ def process_forms_tab(section='cafe'):
                 st.markdown("<br>", unsafe_allow_html=True)
                 continue
             
-            # Layout com 6 colunas
-            cols = st.columns(6)
+            # Layout com colunas
+            cols = st.columns(MAX_COLUMNS)
             
             for element in row_elements:
                 name = element[0]
@@ -343,12 +344,11 @@ def process_forms_tab(section='cafe'):
                 value = element[4]
                 select_options = element[5]
                 str_value = element[6]
-                e_col = element[7] - 1  # Ajusta para índice 0-5
+                e_col = element[7] - 1  # Ajusta para índice 0-4
                 
-                # Verifica se o índice da coluna está dentro do limite
-                if e_col >= 6:
-                    st.error(f"Coluna inválida para o elemento {name}: {e_col + 1}. Deve ser entre 1 e 6.")
-                    continue
+                # Verifica se a coluna está dentro do limite
+                if e_col >= MAX_COLUMNS:
+                    continue  # Pula silenciosamente elementos fora do limite
 
                 with cols[e_col]:
                     try:
@@ -510,8 +510,11 @@ def process_forms_tab(section='cafe'):
                                 """, (result, name, st.session_state.user_id))
                                 conn.commit()
                                 
-                                # Exibe no formato BR
-                                result_br = f"{result:.2f}".replace('.', ',')
+                                # Ajusta casas decimais baseado no valor
+                                if abs(result) < 1 and result != 0:
+                                    result_br = f"{result:.6f}".replace('.', ',')
+                                else:
+                                    result_br = f"{result:.2f}".replace('.', ',')
                                 
                                 st.markdown(f"""
                                     <div style='text-align: left;'>
@@ -638,7 +641,7 @@ def process_forms_tab(section='cafe'):
                                 result = calculate_formula(math_elem, st.session_state.form_values, cursor)
                                 
                                 # Converte resultado para formato BR antes de salvar
-                                result_br = f"{result:.2f}".replace('.', ',')
+                                result_br = f"{result:.0f}".replace('.', ',')
                                 
                                 # Atualiza o value_element no banco
                                 cursor.execute("""

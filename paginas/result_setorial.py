@@ -1,6 +1,6 @@
-# Arquivo: resultados.py
-# Data: 14/02/2025 08:00
-# Pagina de resultados - Dashboard
+# Arquivo: result_setorial.py
+# Data: 16/02/2025 14:25
+# Pagina de resultados - Setorial
 
 import streamlit as st
 import sqlite3
@@ -76,21 +76,20 @@ def pula_linha(cursor, element):
 
 def new_user(cursor, user_id):
     """
-    Cria registros iniciais para um novo usuário na tabela forms_resultados,
+    Cria registros iniciais para um novo usuário na tabela forms_setorial,
     copiando os dados do template (user_id = 0)
     """
     try:
         # Verifica se já existem registros para o usuário
         cursor.execute("""
-            SELECT COUNT(*) FROM forms_resultados 
+            SELECT COUNT(*) FROM forms_setorial 
             WHERE user_id = ?
         """, (user_id,))
         
         if cursor.fetchone()[0] == 0:
             # Copia dados do template (user_id = 0) para o novo usuário
-            # value_element já é REAL, então não precisa de conversão
             cursor.execute("""
-                INSERT INTO forms_resultados (
+                INSERT INTO forms_setorial (
                     user_id, name_element, type_element, math_element,
                     msg_element, value_element, select_element, str_element,
                     e_col, e_row, section
@@ -99,7 +98,7 @@ def new_user(cursor, user_id):
                     ?, name_element, type_element, math_element,
                     msg_element, value_element, select_element, str_element,
                     e_col, e_row, section
-                FROM forms_resultados
+                FROM forms_setorial
                 WHERE user_id = 0
             """, (user_id,))
             
@@ -121,9 +120,8 @@ def call_dados(cursor, element):
         user_id = element[10]    # user_id
         
         if type_elem == 'call_dados':
-            # Busca o valor com CAST para garantir precisão decimal
             cursor.execute("""
-                SELECT CAST(value_element AS DECIMAL(20, 8))
+                SELECT value_element 
                 FROM forms_tab 
                 WHERE name_element = ? 
                 AND user_id = ?
@@ -134,12 +132,11 @@ def call_dados(cursor, element):
             result = cursor.fetchone()
             
             if result:
-                value = float(result[0]) if result[0] is not None else 0.0
+                value = result[0]
                 
-                # Atualiza usando CAST para manter a precisão
                 cursor.execute("""
-                    UPDATE forms_resultados 
-                    SET value_element = CAST(? AS DECIMAL(20, 8))
+                    UPDATE forms_setorial 
+                    SET value_element = ? 
                     WHERE name_element = ? 
                     AND user_id = ?
                 """, (value, name, user_id))
@@ -153,7 +150,7 @@ def call_dados(cursor, element):
 
 def grafico_barra(cursor, element):
     """
-    Cria um gráfico de barras verticais com dados da tabela forms_resultados.
+    Cria um gráfico de barras verticais com dados da tabela forms_setorial.
     
     Args:
         cursor: Conexão com o banco de dados
@@ -196,7 +193,7 @@ def grafico_barra(cursor, element):
             # Primeiro busca o valor
             cursor.execute("""
                 SELECT value_element 
-                FROM forms_resultados 
+                FROM forms_setorial 
                 WHERE name_element = ? 
                 AND user_id = ?
                 ORDER BY ID_element DESC
@@ -209,7 +206,7 @@ def grafico_barra(cursor, element):
             # Depois busca a cor no registro do gráfico atual
             cursor.execute("""
                 SELECT section 
-                FROM forms_resultados 
+                FROM forms_setorial 
                 WHERE type_element = 'grafico'
                 AND select_element LIKE ?
                 AND user_id = ?
@@ -281,7 +278,7 @@ def grafico_barra(cursor, element):
 
 def tabela_dados(cursor, element):
     """
-    Cria uma tabela estilizada com dados da tabela forms_resultados.
+    Cria uma tabela estilizada com dados da tabela forms_setorial.
     Tabela transposta (vertical) com valores em vez de nomes.
     
     Args:
@@ -334,7 +331,7 @@ def tabela_dados(cursor, element):
         for type_name in type_names:
             cursor.execute("""
                 SELECT value_element 
-                FROM forms_resultados 
+                FROM forms_setorial 
                 WHERE name_element = ? 
                 AND user_id = ?
                 ORDER BY ID_element DESC
@@ -397,12 +394,12 @@ def subtitulo():
         <h2 style='
             text-align: Left;
             font-size: 36px;
-            color: #000000;
+            color: #2E2E2E;
             margin-top: 10px;
             margin-bottom: 30px;
             font-family: sans-serif;
             font-weight: 500;
-        '>Resultado das Simulações da Empresa</h2>
+        '>Resultados Comparativos ao Setor</h2>
     """, unsafe_allow_html=True)
 
 def show_results():
@@ -416,7 +413,7 @@ def show_results():
             
         user_id = st.session_state.user_id
         
-        # Adiciona o subtítulo antes do conteúdo principal
+        # Adiciona o subtítulo no início da página
         subtitulo()
         
         conn = sqlite3.connect(DB_NAME)
@@ -430,7 +427,7 @@ def show_results():
             SELECT name_element, type_element, math_element, msg_element,
                    value_element, select_element, str_element, e_col, e_row,
                    section, user_id
-            FROM forms_resultados
+            FROM forms_setorial
             WHERE (type_element = 'titulo' OR type_element = 'pula linha' 
                   OR type_element = 'call_dados' OR type_element = 'grafico'
                   OR type_element = 'tabela')

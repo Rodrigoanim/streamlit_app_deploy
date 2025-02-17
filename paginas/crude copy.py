@@ -1,7 +1,7 @@
 # Arquivo: crude.py
-# Data: 16/02/2025  16:45
+# Data: 16/02/2025  11:00
 # IDE Cursor - claude 3.5 sonnet
-# Campos editáveis / forms_setorial_sea
+# Campos editáveis / forms_result_sea
 
 import streamlit as st
 import pandas as pd
@@ -57,10 +57,9 @@ def show_crud():
     if st.button("Atualizar Dados"):
         st.rerun()
     
-    # Atualiza a lista de tabelas para incluir a tabela de usuários
-    tables = ["", "usuarios", "forms_tab", "forms_insumos", "forms_resultados", 
-              "forms_result_sea", "forms_setorial", "forms_setorial_sea", "forms_energetica"]
-    
+    # Seleção da tabela
+    st.write("Selecione a tabela:")
+    tables = ["", "forms_tab", "forms_insumos", "forms_resultados", "forms_result_sea", "forms_setorial"]
     selected_table = st.selectbox("Selecione a tabela", tables, key="table_selector")
     
     if selected_table:
@@ -68,9 +67,6 @@ def show_crud():
         cursor = conn.cursor()
         
         try:
-            # Verifica se é a tabela de usuários para tratamento especial da senha
-            is_user_table = selected_table == "usuarios"
-            
             # Análise da tabela
             analysis = get_table_analysis(cursor, selected_table)
             
@@ -114,54 +110,24 @@ def show_crud():
                 col_name = col_info[1]
                 col_type = col_info[2].upper()
                 
-                # Configuração especial para a tabela de usuários
-                if is_user_table:
-                    if col_name == "perfil":
-                        column_config[col_name] = st.column_config.SelectboxColumn(
-                            "perfil",
-                            width="medium",
-                            required=True,
-                            options=["Admin", "Usuario", "Gestor"]
-                        )
-                    elif col_name == "email":
-                        column_config[col_name] = st.column_config.TextColumn(
-                            "email",
-                            width="medium",
-                            required=True
-                        )
-                    else:
-                        if 'INTEGER' in col_type:
-                            column_config[col_name] = st.column_config.NumberColumn(
-                                col_name,
-                                width="medium",
-                                required=True,
-                            )
-                        else:
-                            column_config[col_name] = st.column_config.TextColumn(
-                                col_name,
-                                width="medium",
-                                required=True
-                            )
+                if 'INTEGER' in col_type:
+                    column_config[col_name] = st.column_config.NumberColumn(
+                        col_name,
+                        width="medium",
+                        required=True,
+                    )
+                elif 'REAL' in col_type:
+                    column_config[col_name] = st.column_config.NumberColumn(
+                        col_name,
+                        width="medium",
+                        required=True,
+                    )
                 else:
-                    # Configuração padrão para outras tabelas
-                    if 'INTEGER' in col_type:
-                        column_config[col_name] = st.column_config.NumberColumn(
-                            col_name,
-                            width="medium",
-                            required=True,
-                        )
-                    elif 'REAL' in col_type:
-                        column_config[col_name] = st.column_config.NumberColumn(
-                            col_name,
-                            width="medium",
-                            required=True,
-                        )
-                    else:
-                        column_config[col_name] = st.column_config.TextColumn(
-                            col_name,
-                            width="medium",
-                            required=True
-                        )
+                    column_config[col_name] = st.column_config.TextColumn(
+                        col_name,
+                        width="medium",
+                        required=True
+                    )
             
             # Converte para formato editável
             edited_df = st.data_editor(
