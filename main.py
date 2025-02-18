@@ -1,5 +1,5 @@
 # Arquivo: main.py
-# Data: 18/02/2025 - Hora: 14H00
+# Data: 18/02/2025 - Hora: 17H00
 # IDE Cursor - claude 3.5 sonnet
 # comando: streamlit run main.py
 
@@ -10,6 +10,7 @@ from datetime import datetime
 import time
 import sys
 from config import DB_PATH, DATA_DIR  # Atualize a importação
+import os
 
 # Configuração da página - deve ser a primeira chamada do Streamlit
 st.set_page_config(
@@ -146,15 +147,19 @@ def show_welcome():
 
 def main():
     """Gerencia a navegação entre as páginas do sistema."""
+    # Debug: Mostrar informações sobre os caminhos
+    st.write("Ambiente de Produção:", os.getenv('RENDER') == 'true')
+    st.write("DATA_DIR:", DATA_DIR)
+    st.write("DB_PATH:", DB_PATH)
+    
     # Verifica se o diretório data existe
     if not DATA_DIR.exists():
-        st.error("Pasta 'data' não encontrada. O programa não pode continuar.")
-        st.info("Por favor, crie a pasta 'data' e coloque o arquivo calcpc.db nela.")
+        st.error(f"Pasta '{DATA_DIR}' não encontrada. O programa não pode continuar.")
         st.stop()
         
     # Verifica se o banco existe
     if not DB_PATH.exists():
-        st.error("Banco de dados não encontrado. Por favor, verifique se o arquivo calcpc.db está na pasta data.")
+        st.error(f"Banco de dados '{DB_PATH}' não encontrado. O programa não pode continuar.")
         st.stop()
         
     logged_in, user_profile = authenticate_user()
