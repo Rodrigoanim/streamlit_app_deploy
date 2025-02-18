@@ -1,5 +1,5 @@
 # Arquivo: main.py
-# Data: 17/02/2025 - Hora: 17h19
+# Data: 18/02/2025 - Hora: 14H00
 # IDE Cursor - claude 3.5 sonnet
 # comando: streamlit run main.py
 
@@ -8,6 +8,8 @@ import sqlite3
 from paginas.form_model import process_forms_tab
 from datetime import datetime
 import time
+import sys
+from config import DB_PATH, DATA_DIR  # Atualize a importação
 
 # Configuração da página - deve ser a primeira chamada do Streamlit
 st.set_page_config(
@@ -17,6 +19,14 @@ st.set_page_config(
 
 def authenticate_user():
     """Autentica o usuário e verifica seu perfil no banco de dados."""
+    # Verifica se o banco existe
+    if not DB_PATH.exists():
+        st.error(f"Banco de dados não encontrado em {DB_PATH}")
+        return False, None
+        
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
     if "user_profile" not in st.session_state:
         st.session_state["user_profile"] = None
 
@@ -40,7 +50,7 @@ def authenticate_user():
         """, unsafe_allow_html=True)
         
         # Login na sidebar
-        st.sidebar.title("Login - ver. fev_17_01a")
+        st.sidebar.title("Login - ver. fev_18_01")
         email = st.sidebar.text_input("E-mail")
         password = st.sidebar.text_input("Senha", type="password")
         
@@ -49,13 +59,10 @@ def authenticate_user():
             login_button = st.button("Entrar")
         
         if login_button:
-            conn = sqlite3.connect("calcpc.db")
-            cursor = conn.cursor()
             cursor.execute("""
                 SELECT id, user_id, perfil, nome FROM usuarios WHERE email = ? AND senha = ?
             """, (email, password))
             user = cursor.fetchone()
-            conn.close()
 
             if user:
                 st.session_state["logged_in"] = True
@@ -74,7 +81,7 @@ def show_welcome():
     st.title("Bem-vindo ao Sistema!")
     
     # Buscar dados do usuário
-    conn = sqlite3.connect("calcpc.db")
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         SELECT email, empresa 
@@ -139,6 +146,17 @@ def show_welcome():
 
 def main():
     """Gerencia a navegação entre as páginas do sistema."""
+    # Verifica se o diretório data existe
+    if not DATA_DIR.exists():
+        st.error("Pasta 'data' não encontrada. O programa não pode continuar.")
+        st.info("Por favor, crie a pasta 'data' e coloque o arquivo calcpc.db nela.")
+        st.stop()
+        
+    # Verifica se o banco existe
+    if not DB_PATH.exists():
+        st.error("Banco de dados não encontrado. Por favor, verifique se o arquivo calcpc.db está na pasta data.")
+        st.stop()
+        
     logged_in, user_profile = authenticate_user()
 
     if not logged_in:
@@ -149,7 +167,7 @@ def main():
         st.session_state["previous_page"] = None
     
     # Titulo da página
-    st.title("Simulador da Pegada de Carbono do Café Torrado")
+    # st.markdown("<h1 style='text-align: center'>Simulador da Pegada de Carbono do Café Torrado</h1>", unsafe_allow_html=True)
 
     # Adicionar informação do usuário logado
     st.sidebar.markdown(f"""
@@ -222,7 +240,7 @@ def save_current_form_data():
     """Salva os dados do formulário atual quando houver mudança de página"""
     if "form_data" in st.session_state:
         with st.spinner('Salvando dados...'):
-            conn = sqlite3.connect("calcpc.db")
+            conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             
             # Criar tabelas se não existirem

@@ -1,14 +1,13 @@
 # Arquivo: crude.py
-# Data: 16/02/2025  16:45
+# Data: 18/02/2025  14:00
 # IDE Cursor - claude 3.5 sonnet
-# Campos editáveis / forms_setorial_sea
+# Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
 
 import streamlit as st
 import pandas as pd
 import sqlite3
 
-# Nome do banco de dados
-DB_NAME = "calcpc.db"
+from config import DB_PATH  # Adicione esta importação
 
 def format_br_number(value):
     """Formata um número para o padrão brasileiro."""
@@ -64,7 +63,7 @@ def show_crud():
     selected_table = st.selectbox("Selecione a tabela", tables, key="table_selector")
     
     if selected_table:
-        conn = sqlite3.connect(DB_NAME)
+        conn = sqlite3.connect(DB_PATH)  # Atualizado para usar DB_PATH
         cursor = conn.cursor()
         
         try:

@@ -1,6 +1,7 @@
 # Arquivo: resultados.py
-# Data: 14/02/2025 08:00
+# Data: 18/02/2025 14:00
 # Pagina de resultados - Dashboard
+# Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
 
 import streamlit as st
 import sqlite3
@@ -12,8 +13,7 @@ import io
 import tempfile
 import matplotlib.pyplot as plt
 
-# Nome do banco de dados
-DB_NAME = "calcpc.db"
+from config import DB_PATH  # Adicione esta importação
 
 def format_br_number(value):
     """
@@ -601,7 +601,7 @@ def show_results():
                 status = st.empty()
                 status.info("Gerando PDF...")
                 
-                conn = sqlite3.connect(DB_NAME)
+                conn = sqlite3.connect(DB_PATH)  # Atualizado para usar DB_PATH
                 cursor = conn.cursor()
                 
                 pdf_content = generate_pdf_report(cursor, user_id)
@@ -616,7 +616,7 @@ def show_results():
                         mime="application/pdf"
                     )
         
-        conn = sqlite3.connect(DB_NAME)
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         # Garante que existam dados para o usuário

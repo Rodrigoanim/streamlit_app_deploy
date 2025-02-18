@@ -1,15 +1,15 @@
 # Arquivo: form_model.py
-# Data: 15/02/2025 - Hora: 14H42
+# Data: 18/02/2025 - Hora: 10H00
 # CursorAI - claude 3.5 sonnet - Composer
-# 3x formularios de entrada de dados
+# Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
 
 import sqlite3
 import streamlit as st
 import pandas as pd
 import re
 
-# Nome do banco de dados - calc.db
-DB_NAME = "calcpc.db"
+from config import DB_PATH  # Adicione esta importação
+
 MAX_COLUMNS = 5  # Número máximo de colunas no layout
 
 def date_to_days(date_str):
@@ -294,7 +294,7 @@ def process_forms_tab(section='cafe'):
             st.session_state.form_values = {}
         
         # Conexão com o banco
-        conn = sqlite3.connect(DB_NAME)
+        conn = sqlite3.connect(DB_PATH)  # Atualizado para usar DB_PATH
         cursor = conn.cursor()
 
         # 3. Garante que existam dados para o usuário
@@ -675,46 +675,6 @@ def process_forms_tab(section='cafe'):
     finally:
         if conn:
             conn.close()
-
-    # Inicializar form_data se não existir
-    if "form_data" not in st.session_state:
-        st.session_state["form_data"] = {}
-    
-    if section == "cafe":
-        # Carregar último valor salvo (opcional)
-        conn = sqlite3.connect("calcpc.db")
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT tipo_cafe, quantidade 
-            FROM form_cafe 
-            WHERE user_id = ? 
-            ORDER BY data_input DESC 
-            LIMIT 1
-        """, (st.session_state["user_id"],))
-        ultimo_valor = cursor.fetchone()
-        conn.close()
-        
-        # Usar último valor como padrão se existir
-        tipo_cafe_default = ultimo_valor[0] if ultimo_valor else None
-        quantidade_default = ultimo_valor[1] if ultimo_valor else 0.0
-        
-        # Criar os inputs e salvar no session_state
-        tipo_cafe = st.selectbox(
-            "Tipo de Café",
-            ["Arábica", "Robusta"],
-            index=["Arábica", "Robusta"].index(tipo_cafe_default) if tipo_cafe_default else 0
-        )
-        quantidade = st.number_input(
-            "Quantidade (kg)",
-            min_value=0.0,
-            value=quantidade_default
-        )
-        
-        # Atualizar form_data no session_state
-        st.session_state["form_data"].update({
-            "tipo_cafe": tipo_cafe,
-            "quantidade": quantidade
-        })
 
 def call_insumos(cursor, element):
     """

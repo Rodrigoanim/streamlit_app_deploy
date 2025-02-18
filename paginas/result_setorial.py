@@ -1,14 +1,13 @@
 # Arquivo: result_setorial.py
 # Data: 16/02/2025 14:25
 # Pagina de resultados - Setorial
+# Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
 
 import streamlit as st
 import sqlite3
 import pandas as pd
 import plotly.express as px
-
-# Nome do banco de dados
-DB_NAME = "calcpc.db"
+from config import DB_PATH  # Adicione esta importação
 
 def format_br_number(value):
     """
@@ -416,7 +415,7 @@ def show_results():
         # Adiciona o subtítulo no início da página
         subtitulo()
         
-        conn = sqlite3.connect(DB_NAME)
+        conn = sqlite3.connect(DB_PATH)  # Atualizado para usar DB_PATH
         cursor = conn.cursor()
         
         # Garante que existam dados para o usuário
