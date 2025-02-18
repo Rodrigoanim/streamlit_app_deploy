@@ -147,11 +147,6 @@ def show_welcome():
 
 def main():
     """Gerencia a navegação entre as páginas do sistema."""
-    # Debug: Mostrar informações sobre os caminhos
-    st.write("Ambiente de Produção:", os.getenv('RENDER') == 'true')
-    st.write("DATA_DIR:", DATA_DIR)
-    st.write("DB_PATH:", DB_PATH)
-    
     # Verifica se o diretório data existe
     if not DATA_DIR.exists():
         st.error(f"Pasta '{DATA_DIR}' não encontrada. O programa não pode continuar.")
@@ -163,7 +158,7 @@ def main():
         st.stop()
         
     logged_in, user_profile = authenticate_user()
-
+    
     if not logged_in:
         st.stop()
     

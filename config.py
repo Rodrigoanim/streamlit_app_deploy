@@ -1,6 +1,6 @@
 # Programa: config.py
 # Data: 18/02/2025
-# Hora: 17:40
+# Hora: 17:40cd
 
 
 import os
