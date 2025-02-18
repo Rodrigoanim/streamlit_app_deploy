@@ -50,7 +50,7 @@ def authenticate_user():
         """, unsafe_allow_html=True)
         
         # Login na sidebar
-        st.sidebar.title("Login - ver. fev_18_01")
+        st.sidebar.title("Login - ver. SSD")
         email = st.sidebar.text_input("E-mail")
         password = st.sidebar.text_input("Senha", type="password")
         
