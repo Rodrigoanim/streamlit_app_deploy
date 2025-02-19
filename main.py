@@ -1,5 +1,5 @@
 # Arquivo: main.py
-# Data: 18/02/2025 - Hora: 17H00
+# Data: 19/02/2025 - Hora: 10H00
 # IDE Cursor - claude 3.5 sonnet
 # comando: streamlit run main.py
 
@@ -15,7 +15,21 @@ import os
 # Configuração da página - deve ser a primeira chamada do Streamlit
 st.set_page_config(
     page_title="Simulador da Pegada de Carbono do Café Torrado",
-    layout="wide"
+    layout="wide",
+    menu_items={
+        'About': """
+        ### Sobre o Sistema
+        
+        Versão: 1.0.0
+        
+        Este sistema foi desenvolvido para calcular e analisar a pegada de carbono 
+        do processo de produção de café torrado.
+        
+        © 2025 Todos os direitos reservados.
+        """,
+        'Get Help': None,
+        'Report a bug': None
+    }
 )
 
 def authenticate_user():
@@ -46,18 +60,20 @@ def authenticate_user():
             st.image("pegada.jpg", use_container_width=True)
             
         st.markdown("""
-            <h1 style='text-align: center;'>Simulador da Pegada de<br>Carbono do Café Torrado</h1>
+            <p style='text-align: center; font-size: 40px;font-weight: bold;'>Simulador da Pegada de Carbono do Café Torrado</p>
             <p style='text-align: center; font-size: 20px;'>Faça login para acessar o sistema</p>
         """, unsafe_allow_html=True)
         
         # Login na sidebar
-        st.sidebar.title("Login - ver. SSD")
-        email = st.sidebar.text_input("E-mail")
-        password = st.sidebar.text_input("Senha", type="password")
+        st.sidebar.title("Login - versão PDF2")
+        email = st.sidebar.text_input("E-mail", key="email")
+        password = st.sidebar.text_input("Senha", type="password", key="password", on_change=lambda: st.session_state.update({"enter_pressed": True}) if "password" in st.session_state else None)
         
         col1, col2 = st.sidebar.columns(2)
         with col1:
-            login_button = st.button("Entrar")
+            login_button = st.button("Entrar") or st.session_state.get("enter_pressed", False)
+            if "enter_pressed" in st.session_state:
+                st.session_state.enter_pressed = False
         
         if login_button:
             cursor.execute("""
@@ -79,7 +95,9 @@ def authenticate_user():
 
 def show_welcome():
     """Exibe a tela de boas-vindas com informações do usuário"""
-    st.title("Bem-vindo ao Sistema!")
+    st.markdown("""
+                <p style='text-align: left; font-size: 40px;'>Bem-vindo ao sistema!</p>
+    """, unsafe_allow_html=True)
     
     # Buscar dados do usuário
     conn = sqlite3.connect(DB_PATH)
@@ -167,7 +185,8 @@ def main():
         st.session_state["previous_page"] = None
     
     # Titulo da página
-    # st.markdown("<h1 style='text-align: center'>Simulador da Pegada de Carbono do Café Torrado</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: left; font-size: 44px;font-weight: bold;'>Simulador da Pegada de Carbono do Café Torrado</p>", 
+                unsafe_allow_html=True)
 
     # Adicionar informação do usuário logado
     st.sidebar.markdown(f"""
