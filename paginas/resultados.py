@@ -32,6 +32,7 @@ import io
 import tempfile
 import matplotlib.pyplot as plt
 import traceback
+from paginas.monitor import registrar_acesso
 
 from config import DB_PATH  # Adicione esta importação
 
@@ -544,6 +545,13 @@ def subtitulo():
                 try:
                     st.info("Gerando PDF... Por favor, aguarde.")
                     
+                    # 2. Registra geração do PDF
+                    registrar_acesso(
+                        st.session_state.user_id,
+                        "resultados",
+                        "Geração PDF na simulação Resultados"
+                    )
+                    
                     # Configuração inicial do PDF com orientação paisagem
                     buffer = io.BytesIO()
                     doc = SimpleDocTemplate(
@@ -696,6 +704,18 @@ def subtitulo():
     except Exception as e:
         st.error(f"Erro ao gerar interface: {str(e)}")
 
+def verificar_dados_usuario(cursor, user_id):
+    """
+    Verifica se existem dados do usuário na tabela forms_tab
+    """
+    cursor.execute("""
+        SELECT COUNT(*) 
+        FROM forms_tab 
+        WHERE user_id = ?
+    """, (user_id,))
+    
+    return cursor.fetchone()[0] > 0
+
 def show_results():
     """
     Função principal para exibir a página de resultados
@@ -706,6 +726,22 @@ def show_results():
             return
             
         user_id = st.session_state.user_id
+        
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Verifica se existem dados do usuário
+        if not verificar_dados_usuario(cursor, user_id):
+            st.error("ALERTA: Primeiro favor preencher os dados da simulação no: Form - Tipo de Café, Form - Moagem e Torrefação ou Form - Embalagem")
+            conn.close()
+            return
+        
+        # 1. Registra acesso à página
+        registrar_acesso(
+            user_id,
+            "resultados",
+            "Acesso na simulação Resultados"
+        )
 
         # Adiciona o subtítulo antes do conteúdo principal
         subtitulo()
@@ -731,9 +767,6 @@ def show_results():
             </style>
         """
         st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-        
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
         
         # Garante que existam dados para o usuário
         new_user(cursor, user_id)

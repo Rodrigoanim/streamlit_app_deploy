@@ -1,5 +1,5 @@
 # Arquivo: result_sea.py
-# Data: 18/02/2025 14:00
+# Data: 19/02/2025 14:00
 # Pagina de resultados - Sem a Etapa Agrícola
 # Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
 
@@ -411,6 +411,20 @@ def show_results():
             return
             
         user_id = st.session_state.user_id
+        
+        # Verifica se existem dados do usuário na forms_tab
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT COUNT(*) FROM forms_tab 
+            WHERE user_id = ?
+        """, (user_id,))
+        
+        if cursor.fetchone()[0] == 0:
+            st.warning("ALERTA: Primeiro favor preencher os dados da simulação no: Form - Tipo de Café, Form - Moagem e Torrefação ou Form - Embalagem")
+            conn.close()
+            return
         
         # Adiciona o subtítulo no início da página
         subtitulo()

@@ -1,14 +1,16 @@
 # Arquivo: form_model.py
-# Data: 18/02/2025 - Hora: 10H00
-# CursorAI - claude 3.5 sonnet - Composer
+# Data: 19/02/2025 - Hora: 18H00
+# CursorAI - claude 3.5 sonnet 
 # Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
+# Rotina de coleta de logs de acesso ao sistema
 
 import sqlite3
 import streamlit as st
 import pandas as pd
 import re
 
-from config import DB_PATH  # Adicione esta importação
+from config import DB_PATH
+from paginas.monitor import registrar_acesso  # Ajustado para incluir o caminho completo
 
 MAX_COLUMNS = 5  # Número máximo de colunas no layout
 
@@ -273,6 +275,11 @@ def process_forms_tab(section='cafe'):
     """
     conn = None
     try:
+        # Inicializa flag de log no session_state se não existir
+        log_key = f"log_registered_{section}"
+        if log_key not in st.session_state:
+            st.session_state[log_key] = False
+            
         # 1. Verifica se há um usuário logado
         if 'user_id' not in st.session_state:
             st.error("Usuário não está logado!")
@@ -462,6 +469,15 @@ def process_forms_tab(section='cafe'):
                                     
                                     # Compara valores como float
                                     if abs(numeric_value - float(value or 0)) > 1e-10:
+                                        # Registra log apenas uma vez por seção
+                                        if not st.session_state[log_key]:
+                                            registrar_acesso(
+                                                st.session_state.user_id,
+                                                f"forms_{section}",
+                                                f"Alteração em formulário de {section}"
+                                            )
+                                            st.session_state[log_key] = True
+                                            
                                         cursor.execute("""
                                             UPDATE forms_tab 
                                             SET value_element = ? 
