@@ -1,5 +1,5 @@
 # Arquivo: main.py
-# Data: 19/02/2025 - Hora: 10H00
+# Data: 20/02/2025 - Hora: 10H00
 # IDE Cursor - claude 3.5 sonnet
 # comando: streamlit run main.py
 # novo programa: monitor.py - Dashboard de monitoramento de uso
@@ -34,6 +34,16 @@ st.set_page_config(
     }
 )
 
+# Tela inicial com imagem e título
+col1, col2, col3 = st.columns([1, 20, 1])
+with col2:
+    st.image("pegada.jpg", use_container_width=True)
+
+st.markdown("""
+    <p style='text-align: center; font-size: 40px;font-weight: bold;'>Simulador da Pegada de Carbono do Café Torrado</p>
+    <p style='text-align: center; font-size: 20px;'>Faça login para acessar o sistema</p>
+""", unsafe_allow_html=True)
+
 def authenticate_user():
     """Autentica o usuário e verifica seu perfil no banco de dados."""
     # Verifica se o banco existe
@@ -54,22 +64,12 @@ def authenticate_user():
         st.session_state["user_id"] = None
 
     if not st.session_state["logged_in"]:
-        # Criar uma coluna centralizada
-        col1, col2, col3 = st.columns([1, 20, 1])
-        
-        with col2:
-            # Imagem de capa usando pegada.jpg da raiz
-            st.image("pegada.jpg", use_container_width=True)
-            
-        st.markdown("""
-            <p style='text-align: center; font-size: 40px;font-weight: bold;'>Simulador da Pegada de Carbono do Café Torrado</p>
-            <p style='text-align: center; font-size: 20px;'>Faça login para acessar o sistema</p>
-        """, unsafe_allow_html=True)
-        
         # Login na sidebar
         st.sidebar.title("Login - versão Logs1")
         email = st.sidebar.text_input("E-mail", key="email")
-        password = st.sidebar.text_input("Senha", type="password", key="password", on_change=lambda: st.session_state.update({"enter_pressed": True}) if "password" in st.session_state else None)
+        password = st.sidebar.text_input("Senha", type="password", key="password", 
+                                       on_change=lambda: st.session_state.update({"enter_pressed": True}) 
+                                       if "password" in st.session_state else None)
         
         col1, col2 = st.sidebar.columns(2)
         with col1:
