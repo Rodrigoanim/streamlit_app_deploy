@@ -33,6 +33,8 @@ import tempfile
 import matplotlib.pyplot as plt
 import traceback
 from paginas.monitor import registrar_acesso
+from paginas.form_model_recalc import verificar_dados_usuario, calculate_formula, atualizar_formulas
+import time
 
 from config import DB_PATH  # Adicione esta importação
 
@@ -543,7 +545,9 @@ def subtitulo():
         with col2:
             if st.button("Gerar PDF", type="primary"):
                 try:
-                    st.info("Gerando PDF... Por favor, aguarde.")
+                    # Criar um placeholder para as mensagens
+                    msg_placeholder = st.empty()
+                    msg_placeholder.info("Gerando PDF... Por favor, aguarde.")
                     
                     # 2. Registra geração do PDF
                     registrar_acesso(
@@ -688,38 +692,29 @@ def subtitulo():
                     pdf_data = buffer.getvalue()
                     buffer.close()
                     
-                    st.download_button(
-                        label="Baixar PDF",
-                        data=pdf_data,
-                        file_name="resultados.pdf",
-                        mime="application/pdf"
-                    )
-                    
-                    st.success("PDF gerado com sucesso!")
+                    # Ao finalizar, limpar a mensagem de "Gerando..." e mostrar o botão de download
+                    msg_placeholder.empty()  # Limpa a mensagem anterior
+                    with msg_placeholder.container():
+                        st.download_button(
+                            label="Baixar PDF",
+                            data=pdf_data,
+                            file_name="resultados.pdf",
+                            mime="application/pdf"
+                        )
+                        st.success("PDF gerado com sucesso!")
                     
                 except Exception as e:
-                    st.error(f"Erro ao gerar PDF: {str(e)}")
+                    msg_placeholder.error(f"Erro ao gerar PDF: {str(e)}")
                     st.write("Debug: Stack trace completo:", traceback.format_exc())
                     
     except Exception as e:
         st.error(f"Erro ao gerar interface: {str(e)}")
 
-def verificar_dados_usuario(cursor, user_id):
-    """
-    Verifica se existem dados do usuário na tabela forms_tab
-    """
-    cursor.execute("""
-        SELECT COUNT(*) 
-        FROM forms_tab 
-        WHERE user_id = ?
-    """, (user_id,))
-    
-    return cursor.fetchone()[0] > 0
-
 def show_results():
     """
     Função principal para exibir a página de resultados
     """
+    conn = None
     try:
         if 'user_id' not in st.session_state:
             st.error("Usuário não está logado!")
@@ -727,16 +722,34 @@ def show_results():
             
         user_id = st.session_state.user_id
         
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
-        # Verifica se existem dados do usuário
-        if not verificar_dados_usuario(cursor, user_id):
-            st.error("ALERTA: Primeiro favor preencher os dados da simulação no: Form - Tipo de Café, Form - Moagem e Torrefação ou Form - Embalagem")
-            conn.close()
+        # Estabelece conexão com retry
+        for _ in range(3):
+            try:
+                conn = sqlite3.connect(DB_PATH, timeout=20)
+                cursor = conn.cursor()
+                break
+            except sqlite3.OperationalError as e:
+                if "database is locked" in str(e):
+                    time.sleep(1)
+                    continue
+                raise e
+        else:
+            st.error("Não foi possível conectar ao banco de dados. Tente novamente.")
             return
+
+        # 1. Verifica se usuário tem dados em forms_tab
+        verificar_dados_usuario(cursor, user_id)
         
-        # 1. Registra acesso à página
+        # 2. Atualiza todas as fórmulas e verifica o resultado
+        if not atualizar_formulas(cursor, user_id):
+            st.error("Erro ao atualizar fórmulas!")
+            return
+
+        # 3. Verifica/inicializa dados em forms_resultados
+        new_user(cursor, user_id)
+        conn.commit()
+        
+        # 4. Registra acesso à página
         registrar_acesso(
             user_id,
             "resultados",
@@ -767,9 +780,6 @@ def show_results():
             </style>
         """
         st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-        
-        # Garante que existam dados para o usuário
-        new_user(cursor, user_id)
         
         # Buscar todos os elementos ordenados por row e col
         cursor.execute("""
@@ -843,10 +853,12 @@ def show_results():
                                 elif element[1] == 'tabela':
                                     tabela_dados(cursor, element)
         
-        conn.close()
-        
     except Exception as e:
+        print(f"ERRO em show_results: {str(e)}")
         st.error(f"Erro ao carregar resultados: {str(e)}")
+    finally:
+        if conn:
+            conn.close()
 
 if __name__ == "__main__":
     show_results()

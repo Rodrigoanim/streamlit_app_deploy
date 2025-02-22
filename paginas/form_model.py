@@ -1,5 +1,5 @@
 # Arquivo: form_model.py
-# Data: 19/02/2025 - Hora: 18H00
+# Data: 21/02/2025 - Hora: 14:30
 # CursorAI - claude 3.5 sonnet 
 # Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
 # Rotina de coleta de logs de acesso ao sistema
@@ -335,15 +335,52 @@ def process_forms_tab(section='cafe'):
         for row_num in sorted(rows.keys()):
             row_elements = rows[row_num]
             
-            # Verifica se é uma linha de espaçamento - type element = pula_linha
-            if any(element[1] == 'pula_linha' for element in row_elements):
+            # Processa elementos ocultos primeiro
+            for element in row_elements:
+                if element[1].endswith('H'):
+                    name = element[0]
+                    type_elem = element[1]
+                    math_elem = element[2]
+                    
+                    if type_elem == 'formulaH':
+                        result = calculate_formula(math_elem, st.session_state.form_values, cursor)
+                        cursor.execute("""
+                            UPDATE forms_tab 
+                            SET value_element = ? 
+                            WHERE name_element = ? AND user_id = ?
+                        """, (result, name, st.session_state.user_id))
+                        conn.commit()
+                    elif type_elem == 'condicaoH':
+                        result = process_conditional_element(cursor, element)
+                        cursor.execute("""
+                            UPDATE forms_tab 
+                            SET value_element = ? 
+                            WHERE name_element = ? AND user_id = ?
+                        """, (result, name, st.session_state.user_id))
+                        conn.commit()
+                    elif type_elem == 'call_insumosH':
+                        result = call_insumos(cursor, element)
+                        cursor.execute("""
+                            UPDATE forms_tab 
+                            SET value_element = ? 
+                            WHERE name_element = ? AND user_id = ?
+                        """, (result, name, st.session_state.user_id))
+                        conn.commit()
+            
+            # Verifica se há elementos visíveis na linha para criar o layout
+            visible_elements = [e for e in row_elements if not e[1].endswith('H')]
+            if not visible_elements:
+                continue
+                
+            # Verifica se é uma linha de espaçamento
+            if any(element[1] == 'pula_linha' for element in visible_elements):
                 st.markdown("<br>", unsafe_allow_html=True)
                 continue
             
-            # Layout com colunas
+            # Layout com colunas apenas para elementos visíveis
             cols = st.columns(MAX_COLUMNS)
             
-            for element in row_elements:
+            for element in visible_elements:
                 name = element[0]
                 type_elem = element[1]
                 math_elem = element[2]

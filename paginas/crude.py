@@ -1,5 +1,5 @@
 # Arquivo: crude.py
-# Data: 18/02/2025  14:00
+# Data: 21/02/2025  11:00
 # IDE Cursor - claude 3.5 sonnet
 # Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
 # adição do perfil: master
@@ -383,20 +383,31 @@ def show_crud():
             # Botão para salvar alterações
             if st.button("Salvar Alterações"):
                 try:
-                    # Detecta mudanças
-                    if not edited_df.equals(df):
-                        # Atualiza o banco de dados
-                        for index, row in edited_df.iterrows():
-                            update_query = f"""
-                            UPDATE {selected_table}
-                            SET {', '.join(f'{col} = ?' for col in columns)}
-                            WHERE rowid = {index + 1}
+                    # Detecta registros novos comparando o tamanho dos DataFrames
+                    if len(edited_df) > len(df):
+                        # Processa novos registros
+                        new_records = edited_df.iloc[len(df):]
+                        for _, row in new_records.iterrows():
+                            # Remove o índice da linha que é automaticamente adicionado
+                            row_values = [row[col] for col in columns]
+                            insert_query = f"""
+                            INSERT INTO {selected_table} ({', '.join(columns)})
+                            VALUES ({', '.join(['?' for _ in columns])})
                             """
-                            cursor.execute(update_query, tuple(row))
-                        
-                        conn.commit()
-                        st.success("Alterações salvas com sucesso!")
-                        st.rerun()
+                            cursor.execute(insert_query, tuple(row_values))
+
+                    # Atualiza registros existentes
+                    for index, row in edited_df.iloc[:len(df)].iterrows():
+                        update_query = f"""
+                        UPDATE {selected_table}
+                        SET {', '.join(f'{col} = ?' for col in columns)}
+                        WHERE rowid = {index + 1}
+                        """
+                        cursor.execute(update_query, tuple(row))
+                    
+                    conn.commit()
+                    st.success("Alterações salvas com sucesso!")
+                    st.rerun()
                 
                 except Exception as e:
                     st.error(f"Erro ao salvar alterações: {str(e)}")

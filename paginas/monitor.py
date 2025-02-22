@@ -1,7 +1,6 @@
 # Arquivo: monitor.py
-# Data: 19/02/2025 15:25
+# Data: 20/02/2025 15:25
 # Dashboard de monitoramento de uso
-
 # type: ignore
 # pylance: disable=reportMissingModuleSource
 
@@ -9,12 +8,13 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import plotly.express as px
-from datetime import date
+from datetime import date, datetime, timedelta
 import io
 import tempfile
 import matplotlib.pyplot as plt
 import traceback
 from config import DB_PATH
+import os
 
 try:
     import reportlab
@@ -37,9 +37,22 @@ def criar_conexao():
     """Cria conexão com o banco de dados"""
     return sqlite3.connect(DB_PATH)
 
+def get_timezone_adjusted_datetime():
+    """
+    Retorna a data e hora atual ajustada com base no ambiente
+    """
+    current = datetime.now()
+    # Se estiver no Render, ajusta 3 horas para trás
+    if os.getenv('RENDER'):
+        current = current - timedelta(hours=3)
+    return current
+
 def carregar_dados_acessos():
     """Carrega dados de acessos do banco de dados"""
     conn = criar_conexao()
+    
+    # Ajusta a query baseada no ambiente
+    timezone_adjust = "'+3 hours'" if os.getenv('RENDER') else "'0 hours'"
     
     # Query para acessos por empresa - ajustada para últimos 30 dias
     query_empresas = """
@@ -54,7 +67,7 @@ def carregar_dados_acessos():
     """
     
     # Query para acessos por usuário - ajustada para incluir empresa e hora
-    query_usuarios = """
+    query_usuarios = f"""
     SELECT 
         u.nome, 
         u.empresa, 
@@ -62,7 +75,7 @@ def carregar_dados_acessos():
         MAX(la.data_acesso || ' ' || la.hora_acesso) as ultimo_acesso
     FROM log_acessos la
     JOIN usuarios u ON la.user_id = u.user_id
-    WHERE la.data_acesso >= date('now', '-30 days')
+    WHERE date(la.data_acesso, {timezone_adjust}) >= date('now', '-30 days')
     GROUP BY u.user_id, u.nome, u.empresa
     ORDER BY quantidade_acessos DESC
     LIMIT 10
@@ -97,17 +110,17 @@ def carregar_dados_acessos():
 
 def registrar_acesso(user_id, programa, acao):
     """
-    Registra o acesso do usuário no banco de dados
-    Args:
-        user_id: ID do usuário que está acessando o sistema
-        programa: Nome do programa/página sendo acessado
-        acao: Ação realizada pelo usuário
+    Registra o acesso do usuário no banco de dados com ajuste de timezone
     """
     try:
         conn = criar_conexao()
         cursor = conn.cursor()
         
-        # Insere o registro de acesso com data e hora separadas
+        # Obtém data e hora ajustadas
+        dt_adjusted = get_timezone_adjusted_datetime()
+        data_acesso = dt_adjusted.strftime('%Y-%m-%d')
+        hora_acesso = dt_adjusted.strftime('%H:%M:%S')
+        
         cursor.execute("""
         INSERT INTO log_acessos (
             user_id,
@@ -116,14 +129,8 @@ def registrar_acesso(user_id, programa, acao):
             programa,
             acao
         )
-        VALUES (
-            ?,
-            date('now', 'localtime'),
-            time('now', 'localtime'),
-            ?,
-            ?
-        )
-        """, (user_id, programa, acao))
+        VALUES (?, ?, ?, ?, ?)
+        """, (user_id, data_acesso, hora_acesso, programa, acao))
         
         conn.commit()
         conn.close()

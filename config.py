@@ -1,6 +1,6 @@
 # Programa: config.py
 # Data: 18/02/2025
-# Hora: 17:40cd
+# Hora: 17:40
 
 
 import os
@@ -11,7 +11,12 @@ IS_PRODUCTION = os.getenv('RENDER') == 'true'
 
 # Define o caminho base dependendo do ambiente
 if IS_PRODUCTION:
-    DATA_DIR = Path('/var/data')
+    # Verifica se /var/data existe e é gravável
+    var_data = Path('/var/data')
+    if var_data.exists() and os.access(var_data, os.W_OK):
+        DATA_DIR = var_data
+    else:
+        DATA_DIR = Path('/tmp/data')
 else:
     # Caminho local para desenvolvimento
     DATA_DIR = Path(__file__).parent / 'data'

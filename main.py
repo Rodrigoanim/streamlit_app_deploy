@@ -1,5 +1,5 @@
 # Arquivo: main.py
-# Data: 20/02/2025 - Hora: 10H00
+# Data: 21/02/2025 - Hora: 10H30
 # IDE Cursor - claude 3.5 sonnet
 # comando: streamlit run main.py
 # novo programa: monitor.py - Dashboard de monitoramento de uso
@@ -7,12 +7,15 @@
 import streamlit as st
 import sqlite3
 from paginas.form_model import process_forms_tab
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import sys
 from config import DB_PATH, DATA_DIR  # Atualize a importação
 import os
 from paginas.monitor import registrar_acesso  # Adicione esta importação no topo do arquivo
+
+# Adicione esta linha logo no início do arquivo, após os imports
+# os.environ['RENDER'] = 'true'
 
 # Configuração da página - deve ser a primeira chamada do Streamlit
 st.set_page_config(
@@ -34,16 +37,6 @@ st.set_page_config(
     }
 )
 
-# Tela inicial com imagem e título
-col1, col2, col3 = st.columns([1, 20, 1])
-with col2:
-    st.image("pegada.jpg", use_container_width=True)
-
-st.markdown("""
-    <p style='text-align: center; font-size: 40px;font-weight: bold;'>Simulador da Pegada de Carbono do Café Torrado</p>
-    <p style='text-align: center; font-size: 20px;'>Faça login para acessar o sistema</p>
-""", unsafe_allow_html=True)
-
 def authenticate_user():
     """Autentica o usuário e verifica seu perfil no banco de dados."""
     # Verifica se o banco existe
@@ -64,12 +57,22 @@ def authenticate_user():
         st.session_state["user_id"] = None
 
     if not st.session_state["logged_in"]:
+        # Criar uma coluna centralizada
+        col1, col2, col3 = st.columns([1, 20, 1])
+        
+        with col2:
+            # Imagem de capa usando pegada.jpg da raiz
+            st.image("pegada.jpg", use_container_width=True)
+            
+        st.markdown("""
+            <p style='text-align: center; font-size: 40px;font-weight: bold;'>Simulador da Pegada de Carbono do Café Torrado</p>
+            <p style='text-align: center; font-size: 20px;'>Faça login para acessar o sistema</p>
+        """, unsafe_allow_html=True)
+        
         # Login na sidebar
-        st.sidebar.title("Login - versão Logs1")
+        st.sidebar.title("Login - versão Logs.2")
         email = st.sidebar.text_input("E-mail", key="email")
-        password = st.sidebar.text_input("Senha", type="password", key="password", 
-                                       on_change=lambda: st.session_state.update({"enter_pressed": True}) 
-                                       if "password" in st.session_state else None)
+        password = st.sidebar.text_input("Senha", type="password", key="password", on_change=lambda: st.session_state.update({"enter_pressed": True}) if "password" in st.session_state else None)
         
         col1, col2 = st.sidebar.columns(2)
         with col1:
@@ -102,6 +105,17 @@ def authenticate_user():
                 st.sidebar.error("E-mail ou senha inválidos.")
 
     return st.session_state.get("logged_in", False), st.session_state.get("user_profile", None)
+
+def get_timezone_offset():
+    """
+    Determina se é necessário aplicar offset de timezone baseado no ambiente
+    """
+    is_production = os.getenv('RENDER') is not None
+    
+    if is_production:
+        # Se estiver no Render, ajusta 3 horas para trás
+        return datetime.now() - timedelta(hours=3)
+    return datetime.now()  # Se local, usa hora atual
 
 def show_welcome():
     """Exibe a tela de boas-vindas com informações do usuário"""
@@ -142,13 +156,18 @@ def show_welcome():
             </div>
         """, unsafe_allow_html=True)
     
-    # Coluna 2: Atividades (simplificada)
+    # Coluna 2: Atividades (atualizada com hora)
     with col2:
+        current_time = get_timezone_offset()
+        ambiente = "Produção" if os.getenv('RENDER') else "Local"
+        
         st.markdown(f"""
             <div style="background-color: #e8f8ef; padding: 20px; border-radius: 8px;">
                 <p style="color: #2c3e50; font-size: 24px;">Suas Atividades</p>
                 <div style="color: #34495e; font-size: 16px;">
-                    <p>Data Atual: {datetime.now().strftime('%d/%m/%Y')}</p>
+                    <p>Data Atual: {current_time.strftime('%d/%m/%Y')}</p>
+                    <p>Hora Atual: {current_time.strftime('%H:%M:%S')}</p>
+                    <p>Ambiente: {ambiente}</p>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -244,6 +263,8 @@ def main():
         menu_groups["Administração"].append("Monitor de Uso")
     if user_profile and user_profile.lower() == "master":
         menu_groups["Administração"].append("Info Tabelas (CRUD)")
+    if user_profile and user_profile.lower() == "master":
+        menu_groups["Administração"].append("Diagnóstico")
     
     # Se não houver opções de administração, remover o grupo
     if not menu_groups["Administração"]:
@@ -303,6 +324,9 @@ def main():
     elif section == "Monitor de Uso":
         from paginas.monitor import main as show_monitor
         show_monitor()
+    elif section == "Diagnóstico":
+        from paginas.diagnostico import show_diagnostics
+        show_diagnostics()
 
 def save_current_form_data():
     """Salva os dados do formulário atual quando houver mudança de página"""
