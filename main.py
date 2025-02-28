@@ -1,8 +1,9 @@
 # Arquivo: main.py
-# Data: 21/02/2025 - Hora: 10H30
+# Data: 27/02/2025 - Hora: 16:00
 # IDE Cursor - claude 3.5 sonnet
 # comando: streamlit run main.py
-# novo programa: monitor.py - Dashboard de monitoramento de uso
+# botão para zerar dos type = input
+# ajustes de texto Anna
 
 import streamlit as st
 import sqlite3
@@ -19,16 +20,16 @@ from paginas.monitor import registrar_acesso  # Adicione esta importação no to
 
 # Configuração da página - deve ser a primeira chamada do Streamlit
 st.set_page_config(
-    page_title="Simulador da Pegada de Carbono do Café Torrado",
+    page_title="Simulador da Pegada de Carbono do Café Torrado/Moído",
     layout="wide",
     menu_items={
         'About': """
-        ### Sobre o Sistema - Simulador da Pegada de Carbono do Café Torrado
+        ### Sobre o Sistema - Simulador da Pegada de Carbono do Café Torrado/Moído
         
         Versão: 1.0.0 Beta
         
         Este sistema foi desenvolvido para simular a pegada de carbono 
-        do processo de produção do café torrado.
+        do processo de produção do café torrado/moído.
         
         © 2025 Todos os direitos reservados. ABIC - Associação Brasileira de Indústrias de Café.
         """,
@@ -65,12 +66,12 @@ def authenticate_user():
             st.image("pegada.jpg", use_container_width=True)
             
         st.markdown("""
-            <p style='text-align: center; font-size: 40px;font-weight: bold;'>Simulador da Pegada de Carbono do Café Torrado</p>
+            <p style='text-align: center; font-size: 35px;font-weight: bold;'>Simulador da Pegada de Carbono do Café Torrado/Moído</p>
             <p style='text-align: center; font-size: 20px;'>Faça login para acessar o sistema</p>
         """, unsafe_allow_html=True)
         
         # Login na sidebar
-        st.sidebar.title("Login - versão Logs.2")
+        st.sidebar.title("Login - versão TSW.1")
         email = st.sidebar.text_input("E-mail", key="email")
         password = st.sidebar.text_input("Senha", type="password", key="password", on_change=lambda: st.session_state.update({"enter_pressed": True}) if "password" in st.session_state else None)
         
@@ -120,7 +121,7 @@ def get_timezone_offset():
 def show_welcome():
     """Exibe a tela de boas-vindas com informações do usuário"""
     st.markdown("""
-                <p style='text-align: left; font-size: 40px;'>Bem-vindo ao sistema!</p>
+        <p style='text-align: left; font-size: 40px; font-weight: bold;'>Bem-vindo ao sistema!</p>
     """, unsafe_allow_html=True)
     
     # Buscar dados do usuário
@@ -178,19 +179,70 @@ def show_welcome():
             <div style="background-color: #fff8e8; padding: 20px; border-radius: 8px;">
                 <p style="color: #2c3e50; font-size: 24px;">Módulos Disponíveis</p>
                 <div style="color: #34495e; font-size: 16px;">
-                    <p>Inputs - Tipo do Café</p>
-                    <p>Inputs - Moagem e Torrefação</p>
-                    <p>Inputs - Embalagem</p>
-                    <p>Simulações - Resultados</p>
-                    <p>Simulações - Resultados SEA - Sem Etapa Agrícola</p>
+                    <p>Entrada de Dados - Tipo do Café</p>
+                    <p>Entrada de Dados - Moagem e Torrefação</p>
+                    <p>Entrada de Dados - Embalagem</p>
+                    <p>Simulações da Empresa</p>
+                    <p>Simulações da Empresa Sem Etapa Agrícola</p>
                     <p>Simulações - Comparação Setorial</p>
-                    <p>Simulações - Comparação Setorial SEA - Sem Etapa Agrícola</p>
+                    <p>Simulações - Comparação Setorial Sem Etapa Agrícola</p>
                     <p>Simulações - Análise Energética - Torrefação</p>
                 </div>
             </div>
         """
         
         st.markdown(modulos_html, unsafe_allow_html=True)
+
+def zerar_value_element():
+    """Função para zerar todos os value_element do usuário logado na tabela forms_tab onde type_element = 'input'"""
+    # Inicializa o estado do checkbox se não existir
+    if 'confirma_zeragem' not in st.session_state:
+        st.session_state.confirma_zeragem = False
+    
+    # Checkbox para confirmação
+    confirma = st.sidebar.checkbox("Confirmar zeragem dos valores?", 
+                                 value=st.session_state.confirma_zeragem,
+                                 key='confirma_zeragem')
+    
+    if st.sidebar.button("Zerar Valores"):
+        if confirma:
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                
+                # Atualiza value_element para 0.0 apenas onde type_element = 'input'
+                cursor.execute("""
+                    UPDATE forms_tab 
+                    SET value_element = 0.0 
+                    WHERE user_id = ? 
+                    AND value_element IS NOT NULL
+                    AND type_element = 'input'
+                """, (st.session_state["user_id"],))
+                
+                registros_afetados = cursor.rowcount
+                
+                conn.commit()
+                conn.close()
+                
+                # Registra a ação no monitor
+                registrar_acesso(
+                    user_id=st.session_state["user_id"],
+                    programa="main.py",
+                    acao="zerar_valores"
+                )
+                
+                st.sidebar.success(f"Valores zerados com sucesso! ({registros_afetados} registros atualizados)")
+                
+                # Força a atualização da página após 1 segundo
+                time.sleep(1)
+                st.rerun()
+                
+            except Exception as e:
+                st.sidebar.error(f"Erro ao zerar valores: {str(e)}")
+                if 'conn' in locals():
+                    conn.close()
+        else:
+            st.sidebar.warning("Confirme a operação para prosseguir")
 
 def main():
     """Gerencia a navegação entre as páginas do sistema."""
@@ -214,8 +266,11 @@ def main():
         st.session_state["previous_page"] = None
     
     # Titulo da página
-    st.markdown("<p style='text-align: left; font-size: 44px;font-weight: bold;'>Simulador da Pegada de Carbono do Café Torrado</p>", 
-                unsafe_allow_html=True)
+    st.markdown("""
+        <p style='text-align: left; font-size: 44px; font-weight: bold;'>
+            Simulador da Pegada de Carbono do Café Torrado/Moído
+        </p>
+    """, unsafe_allow_html=True)
 
     # Adicionar informação do usuário logado
     st.sidebar.markdown(f"""
@@ -240,31 +295,42 @@ def main():
 
     st.sidebar.title("Menu de Navegação")
     
+    # Atualizar o mapeamento para incluir o novo nome do CRUD
+    section_map = {
+        "Tipo do Café": "cafe",
+        "Moagem e Torrefação": "moagem",
+        "Embalagem": "embalagem",
+        "da Empresa": "Resultados",  # Updated from "Resultados"
+        "Info Tabelas (CRUD)": "crud"
+    }
+    
     # Criando grupos de menu
     menu_groups = {
         "Principal": ["Bem-vindo"],
-        "Formulários Inputs": [
-            "Form - Tipo do Café",
-            "Form - Moagem e Torrefação", 
-            "Form - Embalagem"
+        "Entrada de Dados": [
+            "Tipo do Café",
+            "Moagem e Torrefação", 
+            "Embalagem"
         ],
         "Simulações": [
-            "Resultados",
-            "Resultados SEA",
+            "da Empresa",
+            "da Empresa sem Etapa Agrícola",  # Updated from "Resultados SEA"
             "Comparação Setorial",
             "Comparação Setorial SEA",
             "Análise Energética - Torrefação"
         ],
-        "Administração": []  # Será preenchido condicionalmente
+        "Administração": []  # Iniciando vazio para adicionar itens na ordem correta
     }
     
-    # Adicionar opções administrativas baseado no perfil
-    if user_profile and user_profile.lower() in ["adm", "master"]:
-        menu_groups["Administração"].append("Monitor de Uso")
+    # Adicionar opções administrativas na ordem desejada
     if user_profile and user_profile.lower() == "master":
         menu_groups["Administração"].append("Info Tabelas (CRUD)")
     if user_profile and user_profile.lower() == "master":
         menu_groups["Administração"].append("Diagnóstico")
+    if user_profile and user_profile.lower() in ["adm", "master"]:
+        menu_groups["Administração"].append("Monitor de Uso")
+    # Adicionar Zerar Valores por último
+    menu_groups["Administração"].append("Zerar Valores")
     
     # Se não houver opções de administração, remover o grupo
     if not menu_groups["Administração"]:
@@ -284,15 +350,6 @@ def main():
         key="menu_selection"
     )
 
-    # Atualizar o mapeamento para incluir o novo nome do CRUD
-    section_map = {
-        "Form - Tipo do Café": "cafe",
-        "Form - Moagem e Torrefação": "moagem",
-        "Form - Embalagem": "embalagem",
-        "Resultados": "resultados",
-        "Info Tabelas (CRUD)": "crud"
-    }
-    
     # Verificar se houve mudança de página
     if st.session_state.get("previous_page") != section:
         save_current_form_data()
@@ -301,23 +358,26 @@ def main():
     # Processa a seção selecionada
     if section == "Bem-vindo":
         show_welcome()
-    elif section in ["Form - Tipo do Café", "Form - Moagem e Torrefação", "Form - Embalagem"]:
+    elif section in ["Tipo do Café", "Moagem e Torrefação", "Embalagem"]:
         process_forms_tab(section_map[section])
-    elif section == "Resultados":
-        from paginas.resultados import show_results
-        show_results()
-    elif section == "Resultados SEA":
-        from paginas.result_sea import show_results
-        show_results()
-    elif section == "Comparação Setorial":
-        from paginas.result_setorial import show_results
-        show_results()
-    elif section == "Comparação Setorial SEA":
-        from paginas.result_setorial_sea import show_results
-        show_results()
+    elif section in [
+        "da Empresa",
+        "da Empresa sem Etapa Agrícola",
+        "Comparação Setorial",
+        "Comparação Setorial SEA"
+    ]:
+        # Mapeamento de seções para títulos completos
+        section_to_title = {
+            "da Empresa": "Simulações da Empresa",
+            "da Empresa sem Etapa Agrícola": "Simulações da Empresa Sem Etapa Agrícola",
+            "Comparação Setorial": "Simulações - Comparação Setorial",
+            "Comparação Setorial SEA": "Simulações - Comparação Setorial Sem Etapa Agrícola"
+        }
+        # Passa o título completo para show_page
+        show_page(selected_simulation=section_to_title[section])
     elif section == "Análise Energética - Torrefação":
-        from paginas.result_energetica import show_results
-        show_results()
+        from paginas.result_energetica import show_results as show_energetica
+        show_energetica()
     elif section == "Info Tabelas (CRUD)":
         from paginas.crude import show_crud
         show_crud()
@@ -327,6 +387,54 @@ def main():
     elif section == "Diagnóstico":
         from paginas.diagnostico import show_diagnostics
         show_diagnostics()
+    elif section == "Zerar Valores":
+        zerar_value_element()
+
+def show_page(selected_simulation=None):
+    """
+    Gerencia a exibição das páginas de simulação
+    Args:
+        selected_simulation: Título da simulação selecionada
+    """
+    # Mapeamento de páginas para tabelas e títulos
+    PAGES_CONFIG = {
+        "Simulações da Empresa": {
+            "tabela": "forms_resultados",
+            "titulo": "Simulações da Empresa"
+        },
+        "Simulações da Empresa Sem Etapa Agrícola": {
+            "tabela": "forms_result_sea",
+            "titulo": "Simulações da Empresa Sem Etapa Agrícola"
+        },
+        "Simulações - Comparação Setorial": {
+            "tabela": "forms_setorial",
+            "titulo": "Simulações - Comparação Setorial"
+        },
+        "Simulações - Comparação Setorial Sem Etapa Agrícola": {
+            "tabela": "forms_setorial_sea",
+            "titulo": "Simulações - Comparação Setorial Sem Etapa Agrícola"
+        }
+    }
+
+    # Verifica se usuário está logado
+    if "user_id" not in st.session_state:
+        st.warning("Por favor, faça login para continuar.")
+        return
+
+    # Usa a simulação passada ou permite seleção via selectbox
+    if selected_simulation and selected_simulation in PAGES_CONFIG:
+        page_config = PAGES_CONFIG[selected_simulation]
+    else:
+        st.error("Simulação não encontrada")
+        return
+    
+    # Chama a função show_results com os parâmetros apropriados
+    from paginas.resultados import show_results
+    show_results(
+        tabela_escolhida=page_config["tabela"],
+        titulo_pagina=page_config["titulo"],
+        user_id=st.session_state.user_id
+    )
 
 def save_current_form_data():
     """Salva os dados do formulário atual quando houver mudança de página"""
@@ -335,7 +443,7 @@ def save_current_form_data():
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             
-            # Criar tabelas se não existirem
+            # Queries SQL sem comentários para evitar erros de parsing
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS form_cafe (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -371,7 +479,7 @@ def save_current_form_data():
             
             previous_page = st.session_state.get("previous_page", "")
             
-            if "Form - Tipo do Café" in previous_page:
+            if "Tipo do Café" in previous_page:
                 tipo_cafe = st.session_state.get("form_data", {}).get("tipo_cafe")
                 quantidade = st.session_state.get("form_data", {}).get("quantidade")
                 
@@ -386,7 +494,7 @@ def save_current_form_data():
                         quantidade
                     ))
             
-            elif "Form - Moagem e Torrefação" in previous_page:
+            elif "Moagem e Torrefação" in previous_page:
                 cursor.execute("""
                     INSERT OR REPLACE INTO form_moagem 
                     (user_id, data_input, tipo_moagem, temperatura)
@@ -397,7 +505,7 @@ def save_current_form_data():
                     st.session_state.get("form_data", {}).get("temperatura")
                 ))
             
-            elif "Form - Embalagem" in previous_page:
+            elif "Embalagem" in previous_page:
                 cursor.execute("""
                     INSERT OR REPLACE INTO form_embalagem 
                     (user_id, data_input, tipo_embalagem, peso)

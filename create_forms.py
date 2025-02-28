@@ -1,9 +1,10 @@
 # Arquivo: create_forms.py
-# Data: 18/02/2025 - 15:12
+# Data: 22/02/2025 - 15:12
 # Descrição: Script para atualizar atraves de um arquivo .txt
 # Tabelas: forms_tab, forms_insumos, forms_resultados, forms_result_sea, forms_setorial, forms_setorial_sea, forms_energetica
 # Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
 # Programa roda direto no Python - não usar o streamlit
+# Nova coluna - col_len
 
 
 import sqlite3
@@ -607,9 +608,6 @@ def create_database_forms():
     
     conn = None
     try:
-        # Garante que o diretório de dados existe
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        
         # Verifica banco existente
         if DB_PATH.exists():
             root = tk.Tk()
@@ -625,12 +623,11 @@ def create_database_forms():
                 print("Operação cancelada pelo usuário.")
                 return
         
-        # Criar conexão se ainda não existe
         if not conn:
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
 
-        # Cria tabela
+        # Cria tabela com a coluna col_len
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS {table_name} (
                 ID_element INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -644,65 +641,94 @@ def create_database_forms():
                 e_col INTEGER,
                 e_row INTEGER,
                 user_id INTEGER,
-                section TEXT
+                section TEXT,
+                col_len TEXT
             );
         """)
-        conn.commit()
 
         # Usa a nova função de seleção de arquivo
         txt_file = select_import_file(table_name)
         if not txt_file:
             return
 
-        # Resto do processo de importação
-        df = clean_csv_data(txt_file)
-        if df is None:
-            messagebox.showerror("Erro", "Não foi possível ler o arquivo selecionado.")
+        # Lê o arquivo com configurações específicas para incluir col_len
+        try:
+            df = pd.read_csv(
+                txt_file,
+                encoding='cp1252',
+                sep='\t',
+                quoting=3,
+                na_filter=False,
+                decimal=','
+            )
+            print("\nColunas encontradas no arquivo:")
+            print(df.columns.tolist())
+            
+            print("\nPrimeiras 10 linhas do arquivo com todas as colunas:")
+            pd.set_option('display.max_columns', None)  # Mostra todas as colunas
+            pd.set_option('display.width', None)        # Não limita a largura da exibição
+            pd.set_option('display.max_colwidth', None) # Mostra conteúdo completo das células
+            print(df.head(10))
+            
+            # Verifica se a coluna col_len existe
+            if 'col_len' not in df.columns:
+                print("\nAviso: Coluna 'col_len' não encontrada no arquivo.")
+                df['col_len'] = ''  # Adiciona coluna vazia se não existir
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao ler arquivo:\n{str(e)}")
             return
 
-        # Processa cada linha
-        for _, row in df.iterrows():
-            row_dict = row.to_dict()
+        # Confirmação final antes de iniciar a importação
+        if messagebox.askyesno("Confirmação Final",
+            f"Foram encontradas {len(df)} linhas para importar.\n"
+            "Deseja iniciar a importação?"):
             
-            # Valida dados do selectbox
-            is_valid, row_dict = validate_selectbox_data(row_dict)
-            if not is_valid:
-                continue
-            
-            try:
-                cursor.execute(f"""
-                    INSERT INTO {table_name} (
-                        name_element, type_element, math_element, 
-                        msg_element, value_element, select_element,
-                        str_element, e_col, e_row, user_id, section
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    str(row_dict['name_element']),
-                    str(row_dict['type_element']),
-                    str(row_dict['math_element']),
-                    str(row_dict['msg_element']),
-                    row_dict['value_element'],
-                    str(row_dict['select_element']),
-                    str(row_dict['str_element']),
-                    int(float(format_float_value(row_dict['e_col']))),
-                    int(float(format_float_value(row_dict['e_row']))),
-                    int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
-                    str(row_dict['section']) if pd.notna(row_dict.get('section')) else None
-                ))
-                print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
-            except Exception as e:
-                print(f"Erro ao inserir linha na tabela {table_name}: {str(e)}")
-                continue
+            # Processa cada linha
+            for _, row in df.iterrows():
+                row_dict = row.to_dict()
+                
+                # Valida dados do selectbox
+                is_valid, row_dict = validate_selectbox_data(row_dict)
+                if not is_valid:
+                    continue
+                
+                try:
+                    cursor.execute(f"""
+                        INSERT INTO {table_name} (
+                            name_element, type_element, math_element, 
+                            msg_element, value_element, select_element,
+                            str_element, e_col, e_row, user_id, section,
+                            col_len
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        str(row_dict['name_element']),
+                        str(row_dict['type_element']),
+                        str(row_dict['math_element']),
+                        str(row_dict['msg_element']),
+                        row_dict['value_element'],
+                        str(row_dict['select_element']),
+                        str(row_dict['str_element']),
+                        int(float(format_float_value(row_dict['e_col']))),
+                        int(float(format_float_value(row_dict['e_row']))),
+                        int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
+                        str(row_dict['section']) if pd.notna(row_dict.get('section')) else None,
+                        str(row_dict.get('col_len', ''))  # Inclui col_len, vazio se não existir
+                    ))
+                    print(f"Inserido registro com name_element: {row_dict['name_element']}")
+                except Exception as e:
+                    print(f"Erro ao inserir linha na tabela {table_name}: {str(e)}")
+                    continue
 
-        conn.commit()
-        messagebox.showinfo("Sucesso", 
-            f"Dados importados com sucesso para a tabela '{table_name}'\n"
-            f"Total de registros processados: {len(df)}")
+            conn.commit()
+            messagebox.showinfo("Sucesso", 
+                f"Dados importados com sucesso para a tabela '{table_name}'\n"
+                f"Total de registros processados: {len(df)}")
+        else:
+            print("Importação cancelada pelo usuário.")
 
     except Exception as e:
         messagebox.showerror("Erro", f"Ocorreu um erro durante a importação:\n{str(e)}")
-        print(f"Erro detalhado: {str(e)}")
     finally:
         if conn:
             conn.close()
