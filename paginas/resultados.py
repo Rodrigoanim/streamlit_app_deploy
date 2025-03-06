@@ -1,9 +1,10 @@
 # Arquivo: resultados.py
-# Data: 25/02/2025 18:35
+# Data: 05/03/2025 11:35
 # Pagina de resultados - Dashboard
 # Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
 # layout Anna TWS - titulo unico - grafico sem numeros - altarando rotina PDF 05 100%
-# rotina das Simulações, tabelas: forms_resultados, forms_result-sea, forms_setorial, forms_setorial_sea - OK
+# rotina das Simulações, tabelas: forms_resultados, forms_result-sea, forms_setorial, forms_setorial_sea
+# rotina de arredondamento de valores
 
 # type: ignore
 # pylance: disable=reportMissingModuleSource
@@ -64,7 +65,7 @@ def format_br_number(value):
         
         float_value = float(value)
         if abs(float_value) >= 1:
-            return f"{int(float_value):,}".replace(',', '.')  # Número inteiro com separador de milhar
+            return f"{float_value:,.0f}".replace(',', 'X').replace('.', ',').replace('X', '.')  # Duas casas decimais com separador de milhar
         else:
             return f"{float_value:.3f}".replace('.', ',')  # 3 casas decimais
     except:

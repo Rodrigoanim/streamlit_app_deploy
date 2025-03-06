@@ -1,8 +1,8 @@
 # Arquivo: main.py
-# Data: 27/02/2025 - Hora: 16:00
+# Data: 06/03/2025 - Hora: 11:00
 # IDE Cursor - claude 3.5 sonnet
 # comando: streamlit run main.py
-# botão para zerar dos type = input
+# botão para zerar todos os type = input
 # ajustes de texto Anna
 
 import streamlit as st
@@ -14,19 +14,21 @@ import sys
 from config import DB_PATH, DATA_DIR  # Atualize a importação
 import os
 from paginas.monitor import registrar_acesso  # Adicione esta importação no topo do arquivo
+import streamlit.components.v1 as components
 
 # Adicione esta linha logo no início do arquivo, após os imports
 # os.environ['RENDER'] = 'true'
 
 # Configuração da página - deve ser a primeira chamada do Streamlit
 st.set_page_config(
-    page_title="Simulador da Pegada de Carbono do Café Torrado/Moído",
+    page_title="Simulador da Pegada de Carbono do Café",  # Título simplificado
+    page_icon="☕",
     layout="wide",
     menu_items={
         'About': """
         ### Sobre o Sistema - Simulador da Pegada de Carbono do Café Torrado/Moído
         
-        Versão: 1.0.0 Beta
+        Versão: 1.1. Beta
         
         Este sistema foi desenvolvido para simular a pegada de carbono 
         do processo de produção do café torrado/moído.
@@ -35,7 +37,35 @@ st.set_page_config(
         """,
         'Get Help': None,
         'Report a bug': None
-    }
+    },
+    initial_sidebar_state="expanded"
+)
+
+# Atualizar metadados Open Graph com informações mais específicas
+components.html(
+    """
+    <head>
+        <title>Simulador da Pegada de Carbono do Café Torrado/Moído</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="Simulador da ABIC para cálculo da pegada de carbono do café torrado/moído">
+        
+        <!-- Open Graph / Facebook -->
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="https://apc2.ag93app.com.br/?v=1.0">
+        <meta property="og:title" content="Simulador da Pegada de Carbono do Café Torrado/Moído">
+        <meta property="og:description" content="Ferramenta da ABIC para simulação da pegada de carbono do café torrado/moído">
+        <meta property="og:image" content="https://ag93eventos.com.br/anim/pegada2.jpg?v=1.0">
+        <meta property="og:site_name" content="Simulador Pegada de Carbono">    
+           
+        <!-- Adicional SEO -->
+        <meta name="author" content="ABIC">
+        <meta name="keywords" content="café, pegada de carbono, sustentabilidade, ABIC, café torrado, café moído">
+        <link rel="canonical" href="https://apc2.ag93app.com.br/">
+    </head>
+    """,
+    height=0,
+    width=0
 )
 
 def authenticate_user():
@@ -71,7 +101,7 @@ def authenticate_user():
         """, unsafe_allow_html=True)
         
         # Login na sidebar
-        st.sidebar.title("Login - versão TSW.1")
+        st.sidebar.title("Login - versão TSW.1c")
         email = st.sidebar.text_input("E-mail", key="email")
         password = st.sidebar.text_input("Senha", type="password", key="password", on_change=lambda: st.session_state.update({"enter_pressed": True}) if "password" in st.session_state else None)
         

@@ -1,5 +1,5 @@
 # Arquivo: form_model_recalc.py
-# Data: 23/02/2025 - Hora: 09:11
+# Data: 05/03/2025 - Hora: 11:00
 # CursorAI - claude 3.5 sonnet 
 # Rotina de recalculo de fórmulas
 # Elimina as mensagens de erro de divisão por zero
@@ -74,27 +74,21 @@ def calculate_formula(cursor, name, user_id):
             value = cursor.fetchone()
             math_expr = math_expr.replace(ref, str(value[0] if value else 0))
         
-        # Função para divisão segura
         def safe_div(x, y):
             if abs(float(y)) < 1e-10:  # Considera valores muito próximos de zero
                 return 0.0
             return x / y
         
-        # Ambiente seguro para eval
         safe_env = {
             'safe_div': safe_div,
             '__builtins__': None
         }
         
-        # Substitui divisões pela função segura
         math_expr = re.sub(r'(\d+\.?\d*|\([^)]+\))\s*/\s*(\d+\.?\d*|\([^)]+\))', r'safe_div(\1, \2)', math_expr)
         
         return float(eval(math_expr, safe_env, {}))
             
     except Exception as e:
-        if "division by zero" in str(e):
-            return 0.0  # Retorna 0 silenciosamente em caso de divisão por zero
-        print(f"Erro ao calcular {name}: {str(e)}")
         return 0.0
 
 def atualizar_formulas(cursor, user_id):
@@ -102,9 +96,8 @@ def atualizar_formulas(cursor, user_id):
     Atualiza todas as fórmulas em ordem específica para um determinado usuário
     """
     try:
-        # Busca todas as fórmulas no banco
         cursor.execute("""
-            SELECT name_element, type_element, math_element
+            SELECT name_element, type_element, math_element, section
             FROM forms_tab 
             WHERE user_id = ? 
             AND (type_element = 'formula' OR type_element = 'formulaH')
@@ -114,7 +107,7 @@ def atualizar_formulas(cursor, user_id):
         formulas = cursor.fetchall()
         
         for formula in formulas:
-            name_element, type_element, math_element = formula
+            name_element, type_element, math_element, section = formula
             result = calculate_formula(cursor, name_element, user_id)
             
             cursor.execute("""
@@ -128,5 +121,4 @@ def atualizar_formulas(cursor, user_id):
         return True
         
     except Exception as e:
-        print(f"Erro ao atualizar fórmulas: {str(e)}")
         return False

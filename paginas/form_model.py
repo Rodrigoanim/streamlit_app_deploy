@@ -1,6 +1,7 @@
 # Arquivo: form_model.py
 # type formula font attribute - somente inteiros
-# 27/02/2025 - 11:00 - alterado para calcular o valor do insumo sem usr a tabela forms_insumos
+# 06/03/2025 - 11:00 - alterado para calcular condicaoH sem consultar tabela forms_insumos
+# section = embalagem com 6 colunas
 
 import sqlite3
 import streamlit as st
@@ -66,6 +67,19 @@ def get_element_value(cursor, name_element, element=None):
 def calculate_formula(formula, values, cursor):
     """
     Calcula o resultado de uma fórmula com suporte a operações matemáticas e datas.
+    
+    Args:
+        formula: A fórmula a ser calculada (pode ser número, string ou expressão)
+        values: Dicionário com valores das células
+        cursor: Cursor do banco de dados
+    
+    Returns:
+        float: O resultado do cálculo, formatado segundo as seguintes regras:
+            - Valores >= 1: sem casas decimais (ex: "1.234")
+            - Valores < 1: 3 casas decimais (ex: "0,123")
+            - Usa vírgula como separador decimal
+            - Usa ponto como separador de milhar
+            - Retorna "0" para valores None ou inválidos
     """
     try:
         # Se a fórmula for um número direto
@@ -150,11 +164,25 @@ def calculate_formula(formula, values, cursor):
         processed_formula = re.sub(r'(\d+\.?\d*|\([^)]+\))\s*/\s*(\d+\.?\d*|\([^)]+\))', r'safe_div(\1, \2)', processed_formula)
         
         result = float(eval(processed_formula, safe_env, {}))
-        return result
+        
+        # Formatação do resultado segundo as regras especificadas
+        if result is None:
+            return 0.0
+            
+        # Formata o número com as casas decimais apropriadas
+        if abs(result) >= 1:
+            formatted_result = f"{result:,.0f}"  # Sem casas decimais, com separador de milhar
+        else:
+            formatted_result = f"{result:,.3f}"  # 3 casas decimais, com separador de milhar
+            
+        # Converte para o formato brasileiro (troca . por , para decimal)
+        formatted_result = formatted_result.replace(',', 'TEMP').replace('.', ',').replace('TEMP', '.')
+        
+        return float(formatted_result.replace('.', '').replace(',', '.'))
         
     except Exception as e:
         if "division by zero" in str(e):
-            return 0.0  # Retorna 0 silenciosamente em caso de divisão por zero
+            return 0.0
         st.error(f"Erro no cálculo da fórmula: {str(e)}")
         return 0.0
 
@@ -308,6 +336,9 @@ def process_forms_tab(section='cafe'):
     Args:
         section (str): Seção a ser exibida ('cafe', 'moagem' ou 'embalagem')
     """
+    # Define o número de colunas baseado na seção
+    max_cols = 6 if section == 'embalagem' else 5
+    
     conn = None
     try:
         # Inicializa flag de log no session_state se não existir
@@ -402,9 +433,9 @@ def process_forms_tab(section='cafe'):
                 
                 if 'background-color:#006400' in msg:
                     # Cria colunas mantendo a proporção dentro do MAX_COLUMNS
-                    widths = [1] * MAX_COLUMNS  # Lista com 5 colunas de largura 1
+                    widths = [1] * max_cols  # Lista com 6 colunas de largura 1
                     widths[0] = col_len  # Primeira coluna com largura col_len
-                    widths[col_len:] = [0] * (MAX_COLUMNS - col_len)  # Zera as colunas não usadas
+                    widths[col_len:] = [0] * (max_cols - col_len)  # Zera as colunas não usadas
                     
                     cols = st.columns(widths)
                     with cols[0]:
@@ -418,9 +449,9 @@ def process_forms_tab(section='cafe'):
                 col_len = int(element[9]) if element[9] is not None else 1
                 total_cols += col_len
 
-            # Cria lista de larguras relativas respeitando MAX_COLUMNS
+            # Cria lista de larguras relativas respeitando max_cols
             column_widths = []
-            remaining_cols = MAX_COLUMNS
+            remaining_cols = max_cols
 
             for element in visible_elements:
                 col_len = int(element[9]) if element[9] is not None else 1
@@ -449,7 +480,7 @@ def process_forms_tab(section='cafe'):
                     e_col = element[7] - 1  # Ajusta para índice 0-4
                     
                     # Verifica se a coluna está dentro do limite
-                    if e_col >= MAX_COLUMNS:
+                    if e_col >= max_cols:
                         continue  # Pula silenciosamente elementos fora do limite
 
                     try:
@@ -629,11 +660,13 @@ def process_forms_tab(section='cafe'):
                                 # Calcula o resultado da fórmula
                                 result = calculate_formula(element[2], st.session_state.form_values, cursor)
                                 
-                                # Formata o resultado baseado no valor
-                                if result >= 0:
-                                    result_br = f"{result:.0f}".replace('.', ',')  # Sem casas decimais
+                                # Formata o resultado segundo as regras especificadas
+                                if result is None or result == 0:
+                                    result_br = "0"
+                                elif abs(result) >= 1:
+                                    result_br = f"{result:,.0f}".replace(',', 'TEMP').replace('.', ',').replace('TEMP', '.')
                                 else:
-                                    result_br = f"{result:.3f}".replace('.', ',')  # 3 casas decimais
+                                    result_br = f"{result:,.3f}".replace(',', 'TEMP').replace('.', ',').replace('TEMP', '.')
                                 
                                 # Limpa as aspas do str_value antes de usar
                                 str_value = element[6]

@@ -1,5 +1,5 @@
 # Arquivo: crude.py
-# Data: 22/02/2025  11:00
+# Data: 05/03/2025  16:00
 # IDE Cursor - claude 3.5 sonnet
 # Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
 # Nova coluna - col_len
@@ -403,12 +403,33 @@ def show_crud():
             # Botão para salvar alterações
             if st.button("Salvar Alterações"):
                 try:
+                    # Primeiro, vamos verificar se há duplicatas no DataFrame editado
+                    if selected_table == 'forms_tab':
+                        duplicates = edited_df[edited_df['ID_element'].duplicated(keep=False)]
+                        if not duplicates.empty:
+                            st.error(f"⚠️ Encontradas duplicatas de ID_element no editor: {duplicates['ID_element'].tolist()}")
+                            return
+
                     # Detecta registros novos comparando o tamanho dos DataFrames
                     if len(edited_df) > len(df):
                         # Processa novos registros
                         new_records = edited_df.iloc[len(df):]
                         for _, row in new_records.iterrows():
-                            # Remove o índice da linha que é automaticamente adicionado
+                            if selected_table == 'forms_tab':
+                                # Debug: mostra o ID que está tentando inserir
+                                st.write(f"Tentando inserir ID_element: {row['ID_element']}")
+                                
+                                cursor.execute("""
+                                    SELECT ID_element, rowid 
+                                    FROM forms_tab 
+                                    WHERE ID_element = ?
+                                """, (row['ID_element'],))
+                                existing = cursor.fetchone()
+                                
+                                if existing:
+                                    st.error(f"⚠️ Não é possível adicionar: O ID_element '{row['ID_element']}' já existe na linha {existing[1]}")
+                                    continue
+
                             row_values = [row[col] for col in columns]
                             insert_query = f"""
                             INSERT INTO {selected_table} ({', '.join(columns)})
@@ -418,12 +439,43 @@ def show_crud():
 
                     # Atualiza registros existentes
                     for index, row in edited_df.iloc[:len(df)].iterrows():
-                        update_query = f"""
-                        UPDATE {selected_table}
-                        SET {', '.join(f'{col} = ?' for col in columns)}
-                        WHERE rowid = {index + 1}
-                        """
-                        cursor.execute(update_query, tuple(row))
+                        if selected_table == 'forms_tab':
+                            # Verifica duplicatas considerando o user_id
+                            cursor.execute("""
+                                SELECT ID_element, rowid 
+                                FROM forms_tab 
+                                WHERE ID_element = ? 
+                                    AND user_id = ?
+                                    AND ID_element != (
+                                        SELECT ID_element 
+                                        FROM forms_tab 
+                                        WHERE ID_element = ?
+                                        AND user_id = ?
+                                    )
+                            """, (row['ID_element'], row['user_id'], row['ID_element'], row['user_id']))
+                            
+                            existing = cursor.fetchone()
+                            if existing:
+                                st.error(f"⚠️ Não é possível atualizar: O ID_element '{row['ID_element']}' já está sendo usado em outro registro com o mesmo user_id")
+                                continue
+
+                        # Atualiza usando ID_element e user_id como identificadores
+                        if selected_table == 'forms_tab':
+                            update_query = f"""
+                            UPDATE {selected_table}
+                            SET {', '.join(f'{col} = ?' for col in columns)}
+                            WHERE ID_element = ? AND user_id = ?
+                            """
+                            values = tuple(row) + (row['ID_element'], row['user_id'])
+                        else:
+                            update_query = f"""
+                            UPDATE {selected_table}
+                            SET {', '.join(f'{col} = ?' for col in columns)}
+                            WHERE rowid = {index + 1}
+                            """
+                            values = tuple(row)
+                            
+                        cursor.execute(update_query, values)
                     
                     conn.commit()
                     st.success("Alterações salvas com sucesso!")

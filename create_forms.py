@@ -27,26 +27,19 @@ def clean_string(value):
 def clean_csv_data(txt_file):
     """Limpa e prepara os dados do TXT tabulado em ANSI."""
     try:
-        # Lê o arquivo tabulado em ANSI (cp1252)
         df = pd.read_csv(
             txt_file, 
             index_col=0,
-            encoding='cp1252',  # Codificação ANSI/Windows-1252
-            sep='\t',          # Separador de tabulação
-            quoting=3,         # QUOTE_NONE
-            na_filter=False,   # Não converte strings vazias para NaN
-            decimal=','        # Define vírgula como separador decimal
+            encoding='cp1252',
+            sep='\t',
+            quoting=3,
+            na_filter=False,
+            decimal=','
         )
-        print("Arquivo lido com sucesso usando ANSI e tabulação")
         
-        # Remove aspas extras e espaços
         for column in df.columns:
             if df[column].dtype == 'object':
                 df[column] = df[column].apply(lambda x: str(x).strip('"\'').strip() if pd.notna(x) else '')
-        
-        # Debug: mostra as primeiras linhas após limpeza
-        print("\nPrimeiras linhas após limpeza:")
-        print(df.head())
         
         return df
         
@@ -125,8 +118,8 @@ def validate_selectbox_data(row):
             # Registra conversões para zero que não eram zero originalmente
             if row['value_element'] == 0.0 and str(original_value).strip() not in ['0', '0,0', '']:
                 print(f"Aviso: Valor original '{original_value}' foi convertido para '{format_br_number(0.0)}'")
-            else:
-                print(f"Valor convertido: {format_br_number(row['value_element'])}")
+            # else:
+                # print(f"Valor convertido: {format_br_number(row['value_element'])}")
             
         return True, row
     except Exception as e:
@@ -469,7 +462,7 @@ def create_database():
                         int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
                         str(row_dict['section']) if pd.notna(row_dict.get('section')) else None
                     ))
-                    print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
+                    # print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
                 except Exception as e:
                     print(f"Erro ao inserir linha na tabela {table_name}: {str(e)}")
                     continue
@@ -583,7 +576,7 @@ def create_database_insumos():
                         int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
                         str(row_dict['section']) if pd.notna(row_dict.get('section')) else None
                     ))
-                    print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
+                    # print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
                 except Exception as e:
                     print(f"Erro ao inserir linha na tabela {table_name}: {str(e)}")
                     continue
@@ -715,7 +708,7 @@ def create_database_forms():
                         str(row_dict['section']) if pd.notna(row_dict.get('section')) else None,
                         str(row_dict.get('col_len', ''))  # Inclui col_len, vazio se não existir
                     ))
-                    print(f"Inserido registro com name_element: {row_dict['name_element']}")
+                    # print(f"Inserido registro com name_element: {row_dict['name_element']}")
                 except Exception as e:
                     print(f"Erro ao inserir linha na tabela {table_name}: {str(e)}")
                     continue
@@ -898,7 +891,7 @@ def create_database_result_sea():
                         int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
                         str(row_dict['section']) if pd.notna(row_dict.get('section')) else None
                     ))
-                    print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
+                    # print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
                 except Exception as e:
                     print(f"Erro ao inserir linha na tabela {table_name}: {str(e)}")
                     continue
@@ -1009,7 +1002,7 @@ def create_database_setorial():
                         int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
                         str(row_dict['section']) if pd.notna(row_dict.get('section')) else None
                     ))
-                    print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
+                    # print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
                 except Exception as e:
                     print(f"Erro ao inserir linha na tabela {table_name}: {str(e)}")
                     continue
@@ -1032,11 +1025,8 @@ def create_database_setorial_sea():
     check_database()
     table_name = "forms_setorial_sea"
     
-    print(f"\nIniciando importação para tabela: {table_name}")  # Debug
-    
     conn = None
     try:
-        # Verifica banco existente
         if DB_PATH.exists():
             root = tk.Tk()
             root.withdraw()
@@ -1087,11 +1077,6 @@ def create_database_setorial_sea():
             messagebox.showerror("Erro", "Não foi possível ler o arquivo selecionado.")
             return
 
-        print("\nPrimeiras 5 linhas do arquivo:")  # Debug
-        print(df.head())
-        print("\nColunas do arquivo:")  # Debug
-        print(df.columns.tolist())
-        
         # Confirmação final antes de iniciar a importação
         if messagebox.askyesno("Confirmação Final",
             f"Foram encontradas {len(df)} linhas para importar.\n"
@@ -1100,10 +1085,6 @@ def create_database_setorial_sea():
             # Processa cada linha
             for index, row in df.iterrows():
                 row_dict = row.to_dict()
-                print(f"\nProcessando linha {index}:")  # Debug
-                print(f"name_element: {row_dict.get('name_element')}")
-                print(f"type_element: {row_dict.get('type_element')}")
-                print(f"value_element: {row_dict.get('value_element')}")
                 
                 # Valida dados do selectbox
                 is_valid, row_dict = validate_selectbox_data(row_dict)
@@ -1131,7 +1112,6 @@ def create_database_setorial_sea():
                         int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
                         str(row_dict['section']) if pd.notna(row_dict.get('section')) else None
                     ))
-                    print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
                 except Exception as e:
                     print(f"Erro ao inserir linha na tabela {table_name}: {str(e)}")
                     continue
@@ -1154,8 +1134,6 @@ def create_database_energetica():
     check_database()
     table_name = "forms_energetica"
     
-    print(f"\nIniciando importação para tabela: {table_name}")  # Debug
-    
     conn = None
     try:
         # Verifica banco existente
@@ -1209,11 +1187,6 @@ def create_database_energetica():
             messagebox.showerror("Erro", "Não foi possível ler o arquivo selecionado.")
             return
 
-        print("\nPrimeiras 5 linhas do arquivo:")  # Debug
-        print(df.head())
-        print("\nColunas do arquivo:")  # Debug
-        print(df.columns.tolist())
-        
         # Confirmação final antes de iniciar a importação
         if messagebox.askyesno("Confirmação Final",
             f"Foram encontradas {len(df)} linhas para importar.\n"
@@ -1222,10 +1195,6 @@ def create_database_energetica():
             # Processa cada linha
             for index, row in df.iterrows():
                 row_dict = row.to_dict()
-                print(f"\nProcessando linha {index}:")  # Debug
-                print(f"name_element: {row_dict.get('name_element')}")
-                print(f"type_element: {row_dict.get('type_element')}")
-                print(f"value_element: {row_dict.get('value_element')}")
                 
                 # Valida dados do selectbox
                 is_valid, row_dict = validate_selectbox_data(row_dict)
@@ -1253,7 +1222,7 @@ def create_database_energetica():
                         int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
                         str(row_dict['section']) if pd.notna(row_dict.get('section')) else None
                     ))
-                    print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
+                    # print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
                 except Exception as e:
                     print(f"Erro ao inserir linha na tabela {table_name}: {str(e)}")
                     continue
