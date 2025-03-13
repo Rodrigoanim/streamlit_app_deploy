@@ -1,10 +1,8 @@
-# Arquivo: resultados.py
-# Data: 05/03/2025 11:35
+# resultados.py
+# Data: 11/03/2025 08:35
 # Pagina de resultados - Dashboard
-# Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
-# layout Anna TWS - titulo unico - grafico sem numeros - altarando rotina PDF 05 100%
 # rotina das Simulações, tabelas: forms_resultados, forms_result-sea, forms_setorial, forms_setorial_sea
-# rotina de arredondamento de valores
+# novo layout para as tabelas e Gráficos - redução de conteudo e ajustes de layout
 
 # type: ignore
 # pylance: disable=reportMissingModuleSource
@@ -206,31 +204,54 @@ def call_dados(cursor, element, tabela_destino: str):
 def grafico_barra(cursor, element):
     """
     Cria um gráfico de barras verticais com dados da tabela específica.
+    
+    Args:
+        cursor: Cursor do banco de dados SQLite
+        element: Tupla contendo os dados do elemento do tipo 'grafico'
+            [0] name_element: Nome do elemento
+            [1] type_element: Tipo do elemento (deve ser 'grafico')
+            [3] msg_element: Título/mensagem do gráfico
+            [5] select_element: Lista de type_names separados por '|'
+            [6] str_element: Lista de rótulos separados por '|'
+            [9] section: Cor do gráfico (formato hex)
+            [10] user_id: ID do usuário
+    
+    Configurações do Gráfico:
+        - Título do gráfico usando msg_element
+        - Barras verticais sem hover (tooltip)
+        - Altura fixa de 400px
+        - Largura responsiva
+        - Sem legenda e títulos dos eixos
+        - Fonte tamanho 14px
+        - Valores no eixo Y formatados com separador de milhar
+        - Cor das barras definida pela coluna 'section'
+        - Sem barra de ferramentas do Plotly
     """
     try:
+        # Extrai informações do elemento
         type_elem = element[1]   # type_element
-        msg = element[3]         # msg_element
+        msg = element[3]         # msg_element (título do gráfico)
         select = element[5]      # select_element
         rotulos = element[6]     # str_element
         section = element[9]     # section (cor do gráfico)
         user_id = element[10]    # user_id
         
+        # Validação do tipo e dados necessários
         if type_elem != 'grafico':
             return
             
-        # Validações iniciais
         if not select or not rotulos:
             st.error("Configuração incompleta do gráfico: select ou rótulos vazios")
             return
             
-        # Separa os type_names e rótulos
+        # Processa as listas de type_names e rótulos
         type_names = select.split('|')
         labels = rotulos.split('|')
         
         # Lista para armazenar os valores
         valores = []
         
-        # Busca os valores para cada type_name
+        # Busca os valores para cada type_name no banco
         for type_name in type_names:
             tabela = st.session_state.tabela_escolhida
             cursor.execute(f"""
@@ -246,36 +267,57 @@ def grafico_barra(cursor, element):
             valor = result[0] if result and result[0] is not None else 0.0
             valores.append(valor)
         
-        # Usar a cor definida na coluna section do próprio elemento gráfico
-        cor = section if section else '#1f77b4'  # usa azul como cor padrão se não houver cor definida
+        # Define a cor das barras
+        cor = section if section else '#1f77b4'  # azul padrão se não houver cor definida
         cores = [cor] * len(valores)  # aplica a mesma cor para todas as barras
         
-        # Criar gráfico usando plotly express sem texto nas barras
+        # Adiciona o título antes do gráfico usando markdown
+        if msg:
+            st.markdown(f"""
+                <p style='
+                    text-align: center;
+                    font-size: 24px;
+                    font-weight: bold;
+                    color: #1E1E1E;
+                    margin: 15px 0;
+                    padding: 10px;
+                '>{msg}</p>
+            """, unsafe_allow_html=True)
+        
+        # Cria o gráfico usando plotly express
         fig = px.bar(
             x=labels,
             y=valores,
-            title=None,
+            title=None,  # Remove título do plotly pois já usamos markdown
             color_discrete_sequence=cores
         )
         
-        # Configura o layout
+        # Configura o layout do gráfico
         fig.update_layout(
+            # Remove títulos dos eixos
             xaxis_title=None,
             yaxis_title=None,
+            # Remove legenda
             showlegend=False,
+            # Define dimensões
             height=400,
-            width=None,
+            width=None,  # largura responsiva
+            # Configuração do eixo X
             xaxis=dict(
-                tickfont=dict(size=14),
+                tickfont=dict(size=14),  # tamanho da fonte
             ),
+            # Configuração do eixo Y
             yaxis=dict(
-                tickfont=dict(size=14),
-                tickformat=",.",
-                separatethousands=True
-            )
+                tickfont=dict(size=14),  # tamanho da fonte
+                tickformat=",.",  # formato dos números
+                separatethousands=True  # separador de milhar
+            ),
+            # Desativa o hover (tooltip ao passar o mouse)
+            hovermode=False
         )
         
-        # Exibe o gráfico
+        # Exibe o gráfico no Streamlit
+        # config={'displayModeBar': False} remove a barra de ferramentas do Plotly
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         
     except Exception as e:
@@ -349,7 +391,7 @@ def tabela_dados(cursor, element):
         
         # Criar DataFrame com os dados
         df = pd.DataFrame({
-            'Descrição': rotulos,
+            'Indicador': rotulos,
             'Valor': valores
         })
         
@@ -374,12 +416,12 @@ def tabela_dados(cursor, element):
                 <table style='width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 10px; overflow: hidden; box-shadow: 0 0 8px rgba(0,0,0,0.1);'>
                     <thead>
                         <tr>
-                            <th style='text-align: left; padding: 10px; background-color: #e8f5e9; border-bottom: 2px solid #dee2e6;'>Descrição</th>
+                            <th style='text-align: left; padding: 10px; background-color: #e8f5e9; border-bottom: 2px solid #dee2e6;'>Indicador</th>
                             <th style='text-align: right; padding: 10px; background-color: #e8f5e9; border-bottom: 2px solid #dee2e6;'>Valor</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {''.join(f"<tr><td style='padding: 8px 10px; border-bottom: 1px solid #dee2e6;'>{row['Descrição']}</td><td style='text-align: right; padding: 8px 10px; border-bottom: 1px solid #dee2e6;'>{row['Valor']}</td></tr>" for _, row in df.iterrows())}
+                        {''.join(f"<tr><td style='padding: 8px 10px; border-bottom: 1px solid #dee2e6;'>{row['Indicador']}</td><td style='text-align: right; padding: 8px 10px; border-bottom: 1px solid #dee2e6;'>{row['Valor']}</td></tr>" for _, row in df.iterrows())}
                     </tbody>
                 </table>
             </div>
@@ -428,7 +470,7 @@ def gerar_dados_tabela(cursor, elemento, height_pct=100, width_pct=100):
         # Retornar dados formatados para a tabela
         return {
             'title': msg if msg else "Tabela de Dados",
-            'data': [['Descrição', 'Valor']] + list(zip(labels, valores)),
+            'data': [['Indicador', 'Valor']] + list(zip(labels, valores)),
             'height_pct': height_pct,
             'width_pct': width_pct
         }
@@ -519,7 +561,7 @@ def gerar_dados_grafico(cursor, elemento, tabela_escolhida: str, height_pct=100,
 
 def subtitulo(titulo_pagina: str):
     """
-    Exibe o subtítulo da página e o botão de gerar PDF
+    Exibe o subtítulo da página e o botão de gerar PDF (temporariamente desabilitado)
     """
     try:
         col1, col2 = st.columns([8, 2])
@@ -537,13 +579,18 @@ def subtitulo(titulo_pagina: str):
             """, unsafe_allow_html=True)
         
         with col2:
+            # Botão desabilitado temporariamente para manutenção
+            # TODO: Remover comentários e reativar a funcionalidade quando necessário
+            st.button("Gerar PDF", type="primary", key="btn_gerar_pdf", disabled=True)
+            st.caption("🔧 Função temporariamente desabilitada para manutenção")
+            
+            """
+            # Código original comentado para futura reativação
             if st.button("Gerar PDF", type="primary", key="btn_gerar_pdf"):
                 try:
-                    # Criar um placeholder para as mensagens
                     msg_placeholder = st.empty()
                     msg_placeholder.info("Gerando PDF... Por favor, aguarde.")
                     
-                    # Estabelece conexão com retry
                     for _ in range(3):
                         try:
                             conn = sqlite3.connect(DB_PATH, timeout=20)
@@ -558,21 +605,15 @@ def subtitulo(titulo_pagina: str):
                         st.error("Não foi possível conectar ao banco de dados. Tente novamente.")
                         return
                     
-                    # Gera o PDF usando o cursor e a tabela da sessão
                     buffer = generate_pdf_content(
                         cursor, 
                         st.session_state.user_id,
-                        st.session_state.tabela_escolhida  # Passa a tabela da sessão
+                        st.session_state.tabela_escolhida
                     )
                     
                     if buffer:
-                        # Fecha a conexão
                         conn.close()
-                        
-                        # Exibe mensagem de sucesso
                         msg_placeholder.success("PDF gerado com sucesso!")
-                        
-                        # Botão para baixar o PDF
                         st.download_button(
                             label="Baixar PDF",
                             data=buffer.getvalue(),
@@ -586,6 +627,7 @@ def subtitulo(titulo_pagina: str):
                 finally:
                     if 'conn' in locals() and conn:
                         conn.close()
+            """
                     
     except Exception as e:
         st.error(f"Erro ao gerar interface: {str(e)}")
@@ -869,57 +911,46 @@ def show_results(tabela_escolhida: str, titulo_pagina: str, user_id: int):
         for e_row in sorted(row_elements.keys()):
             row_data = row_elements[e_row]
             
-            # Primeiro exibir o título da linha
-            for element in row_data:
-                if element[1] == 'tabela':
-                    st.markdown(f"""
-                        <p style='
-                            text-align: center;
-                            font-size: 32px;
-                            font-weight: bold;
-                            color: #1E1E1E;
-                            margin: 15px 0;
-                            padding: 10px;
-                            background-color: #FFFFFF;
-                            border-radius: 5px;
-                        '>{element[3]}</p>
-                    """, unsafe_allow_html=True)
+            # Primeiro processar tabelas em container separado
+            tabelas = [elem for elem in row_data if elem[1] == 'tabela']
+            for tabela in tabelas:
+                with st.container():
+                    # Centralizar a tabela usando colunas
+                    col1, col2, col3 = st.columns([1, 8, 1])
+                    with col2:
+                        tabela_dados_sem_titulo(cursor, tabela)
             
-            # Depois criar o container com as colunas
-            with st.container():
-                col1, col2 = st.columns(2)
-                
-                # Processar elementos desta linha
-                for element in row_data:
-                    e_col = element[7]  # e_col do elemento
+            # Depois processar outros elementos em duas colunas
+            outros_elementos = [elem for elem in row_data if elem[1] != 'tabela']
+            if outros_elementos:
+                with st.container():
+                    col1, col2 = st.columns(2)
                     
-                    if e_col <= 3:
-                        with col1:
-                            if element[1] == 'tabela':
-                                tabela_dados_sem_titulo(cursor, element)  # Nova função sem título
-                            if element[1] == 'grafico':
-                                grafico_count += 1
-                                grafico_barra(cursor, element)
-                                if grafico_count == 2:
-                                    st.markdown('<div class="page-break"></div>', unsafe_allow_html=True)
-                            else:
-                                if element[1] == 'titulo':
+                    # Processar elementos não-tabela
+                    for element in outros_elementos:
+                        e_col = element[7]  # e_col do elemento
+                        
+                        if e_col <= 3:
+                            with col1:
+                                if element[1] == 'grafico':
+                                    grafico_count += 1
+                                    grafico_barra(cursor, element)
+                                    if grafico_count == 2:
+                                        st.markdown('<div class="page-break"></div>', unsafe_allow_html=True)
+                                elif element[1] == 'titulo':
                                     titulo(cursor, element)
                                 elif element[1] == 'pula linha':
                                     pula_linha(cursor, element)
                                 elif element[1] == 'call_dados':
                                     call_dados(cursor, element, tabela_escolhida)
-                    else:
-                        with col2:
-                            if element[1] == 'tabela':
-                                tabela_dados_sem_titulo(cursor, element)  # Nova função sem título
-                            if element[1] == 'grafico':
-                                grafico_count += 1
-                                grafico_barra(cursor, element)
-                                if grafico_count == 2:
-                                    st.markdown('<div class="page-break"></div>', unsafe_allow_html=True)
-                            else:
-                                if element[1] == 'titulo':
+                        else:
+                            with col2:
+                                if element[1] == 'grafico':
+                                    grafico_count += 1
+                                    grafico_barra(cursor, element)
+                                    if grafico_count == 2:
+                                        st.markdown('<div class="page-break"></div>', unsafe_allow_html=True)
+                                elif element[1] == 'titulo':
                                     titulo(cursor, element)
                                 elif element[1] == 'pula linha':
                                     pula_linha(cursor, element)
@@ -978,7 +1009,7 @@ def tabela_dados_sem_titulo(cursor, element):
         
         # Criar DataFrame com os dados
         df = pd.DataFrame({
-            'Descrição': rotulos,
+            'Indicador': rotulos,
             'Valor': valores
         })
         
@@ -992,12 +1023,12 @@ def tabela_dados_sem_titulo(cursor, element):
                 <table style='width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 10px; overflow: hidden; box-shadow: 0 0 8px rgba(0,0,0,0.1);'>
                     <thead>
                         <tr>
-                            <th style='text-align: left; padding: 10px; background-color: #e8f5e9; border-bottom: 2px solid #dee2e6;'>Descrição</th>
+                            <th style='text-align: left; padding: 10px; background-color: #e8f5e9; border-bottom: 2px solid #dee2e6;'>Indicador</th>
                             <th style='text-align: right; padding: 10px; background-color: #e8f5e9; border-bottom: 2px solid #dee2e6;'>Valor</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {''.join(f"<tr><td style='padding: 8px 10px; border-bottom: 1px solid #dee2e6;'>{row['Descrição']}</td><td style='text-align: right; padding: 8px 10px; border-bottom: 1px solid #dee2e6;'>{row['Valor']}</td></tr>" for _, row in df.iterrows())}
+                        {''.join(f"<tr><td style='padding: 8px 10px; border-bottom: 1px solid #dee2e6;'>{row['Indicador']}</td><td style='text-align: right; padding: 8px 10px; border-bottom: 1px solid #dee2e6;'>{row['Valor']}</td></tr>" for _, row in df.iterrows())}
                     </tbody>
                 </table>
             </div>

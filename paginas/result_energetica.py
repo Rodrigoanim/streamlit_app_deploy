@@ -1,13 +1,14 @@
 # Arquivo: result_energetica.py
-# Data: 25/02/2025 20:00
+# Data: 11/03/2025 16:00
 # Pagina de Análise Energética - Torrefação
 # Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
-# ajustes layout Anna TWS
+# ajustes layout Anna - versão 2
 
 import streamlit as st
 import sqlite3
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from config import DB_PATH  # Adicione esta importação
 from paginas.form_model_recalc import verificar_dados_usuario, calculate_formula, atualizar_formulas
 
@@ -165,7 +166,7 @@ def subtitulo():
 
 def show_results():
     """
-    Função principal para exibir a página de resultados com layout em duas colunas
+    Função principal para exibir a página de resultados
     """
     try:
         if 'user_id' not in st.session_state:
@@ -227,39 +228,40 @@ def show_results():
                             font-family: sans-serif;
                         '>{element[3]}</p>
                     """, unsafe_allow_html=True)
-                    break
-            
-            # Depois processa os elementos da linha normalmente
-            with st.container():
-                col1, col2 = st.columns(2)
-                
-                for element in row_elements[e_row]:
-                    e_col = element[7]
                     
-                    if e_col <= 3:
-                        with col1:
-                            if element[1] == 'titulo':
-                                titulo(cursor, element)
-                            elif element[1] == 'pula linha':
-                                pula_linha(cursor, element)
-                            elif element[1] == 'call_dados':
-                                call_dados(cursor, element)
-                            elif element[1] == 'grafico_ae':
-                                grafico_ae(cursor, element)
-                            elif element[1] == 'tabela_ae':
-                                tabela_ae(cursor, element)
-                    else:
-                        with col2:
-                            if element[1] == 'titulo':
-                                titulo(cursor, element)
-                            elif element[1] == 'pula linha':
-                                pula_linha(cursor, element)
-                            elif element[1] == 'call_dados':
-                                call_dados(cursor, element)
-                            elif element[1] == 'grafico_ae':
-                                grafico_ae(cursor, element)
-                            elif element[1] == 'tabela_ae':
-                                tabela_ae(cursor, element)
+                    # Para tabelas, usar container único sem colunas
+                    for elem in row_elements[e_row]:
+                        if elem[1] == 'tabela_ae':
+                            tabela_ae(cursor, elem)
+                    break
+            else:
+                # Para outros elementos, manter as duas colunas
+                with st.container():
+                    col1, col2 = st.columns(2)
+                    
+                    for element in row_elements[e_row]:
+                        e_col = element[7]
+                        
+                        if e_col <= 3:
+                            with col1:
+                                if element[1] == 'titulo':
+                                    titulo(cursor, element)
+                                elif element[1] == 'pula linha':
+                                    pula_linha(cursor, element)
+                                elif element[1] == 'call_dados':
+                                    call_dados(cursor, element)
+                                elif element[1] == 'grafico_ae':
+                                    grafico_ae(cursor, element)
+                        else:
+                            with col2:
+                                if element[1] == 'titulo':
+                                    titulo(cursor, element)
+                                elif element[1] == 'pula linha':
+                                    pula_linha(cursor, element)
+                                elif element[1] == 'call_dados':
+                                    call_dados(cursor, element)
+                                elif element[1] == 'grafico_ae':
+                                    grafico_ae(cursor, element)
         
         conn.close()
         
@@ -274,26 +276,69 @@ def grafico_ae(cursor, element):
         # Extrai dados do elemento
         select = element[5]      # select_element
         rotulos = element[6]     # str_element
+        msg = element[3]         # msg_element
         user_id = element[10]    # user_id
         
+        if not select or not rotulos:
+            st.warning("Dados insuficientes para criar o gráfico.")
+            return
+            
         # Configurações do gráfico
-        series = ['Simulação da Empresa', 'Menor valor setorial', 'Média setorial', 'Maior valor setorial']
-        cores = ['#00008B', '#ADD8E6', '#3CB371', '#FFA500']  # Azul escuro, Azul claro, Verde, Laranja
+        series = ['Simulação', 'Menor valor setorial', 'Média setorial', 'Maior valor setorial']
+        cores = ['#00008B', '#ADD8E6', '#3CB371', '#FFA500']
         
-        # Busca dados do banco
+        # Processa dados
+        categorias = rotulos.split('|')
         dados = buscar_dados_grafico(cursor, select, user_id)
         
-        # Prepara DataFrame para plotly
-        df = preparar_dataframe_grafico(dados, series, rotulos.split('|'))
+        if not dados:
+            st.warning("Não foram encontrados dados para o gráfico.")
+            return
+            
+        # Cria DataFrame para plotly
+        df_plot = pd.DataFrame(dados, columns=series)
+        df_plot.index = categorias
         
-        # Cria e configura o gráfico
-        fig = criar_grafico_barras(df, cores)
+        # Cria gráfico
+        fig = go.Figure()
         
-        # Exibe o gráfico
+        for i, serie in enumerate(series):
+            fig.add_trace(go.Bar(
+                name=serie,
+                x=categorias,
+                y=df_plot[serie],
+                marker_color=cores[i]
+            ))
+            
+        # Layout
+        fig.update_layout(
+            title=msg,
+            barmode='group',
+            # xaxis_title="Categorias", # retirada para o gráfico ficar mais limpo
+            # yaxis_title="MJ/1000kg de café", # retirada para o gráfico ficar mais limpo
+            showlegend=True,
+            legend=dict(
+                orientation="h",  # horizontal
+                yanchor="bottom",
+                y=-0.3,  # posição abaixo do gráfico
+                xanchor="center",
+                x=0.5,  # centralizado
+                title=None  # remove o título "Valores"
+            ),
+            # Remove a barra de ferramentas
+            modebar_remove=[
+                'zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 
+                'autoScale', 'resetScale', 'lasso2d', 'toImage'
+            ],
+            height=400
+        )
+        
+        # Exibe
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         
     except Exception as e:
         st.error(f"Erro ao criar gráfico AE: {str(e)}")
+        print(f"Erro detalhado: {str(e)}")
 
 def buscar_dados_grafico(cursor, select, user_id):
     """Busca dados do banco para o gráfico"""
@@ -319,149 +364,108 @@ def buscar_dados_grafico(cursor, select, user_id):
     
     return dados
 
-def preparar_dataframe_grafico(dados, series, categorias):
-    """Prepara DataFrame para o gráfico"""
-    df_data = []
-    for i, serie in enumerate(series):
-        for j, categoria in enumerate(categorias):
-            df_data.append({
-                'Categoria': categoria,
-                'Valor': dados[j][i],
-                'Série': serie
-            })
-    return pd.DataFrame(df_data)
-
-def criar_grafico_barras(df, cores):
-    """Cria e configura o gráfico de barras"""
-    fig = px.bar(
-        df,
-        x='Categoria',
-        y='Valor',
-        color='Série',
-        barmode='group',
-        color_discrete_sequence=cores
-    )
-    
-    # Configurações do layout
-    fig.update_layout(
-        xaxis_title=None,
-        # yaxis_title="MJ/1000kg de café",
-        height=500,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=-0.3,
-            xanchor="center",
-            x=0.5
-        ),
-        xaxis=dict(tickfont=dict(size=14)),
-        yaxis=dict(
-            tickfont=dict(size=14),
-            tickformat=",.",
-            separatethousands=True
-        ),
-        margin=dict(t=60, b=100)
-    )
-    
-    return fig
-
 def tabela_ae(cursor, element):
     """
     Cria uma tabela estilizada para análise energética.
     """
     try:
         # Extrai dados do elemento
-        select = element[5]      # select_element
-        str_value = element[6]   # str_element
-        user_id = element[10]    # user_id
+        select = element[5]      # select_element (H54,H35,H49,J54,I54)
+        user_id = element[10]    # user_id do usuário logado
         
-        # Configurações da tabela
-        series = ['Simulação da Empresa', 'Menor valor setorial', 'Média setorial', 'Maior valor setorial']
+        # Busca dados
+        valores_ref = select.split(',')
+        if len(valores_ref) != 5:
+            st.warning("Configuração incorreta dos dados da tabela.")
+            return
         
-        # Estrutura do container
-        col1, col2, col3 = st.columns([1, 8, 1])
-        
-        with col2:
-            # Busca e prepara dados
-            dados = buscar_dados_tabela(cursor, select, user_id)
-            df = criar_dataframe_tabela(dados, series, str_value.split('|'))
+        # Busca valores do banco usando o user_id correto
+        dados = []
+        for ref in valores_ref:
+            ref = ref.strip()
+            cursor.execute("""
+                SELECT value_element 
+                FROM forms_energetica 
+                WHERE name_element = ? 
+                AND user_id = ?
+                ORDER BY ID_element DESC 
+                LIMIT 1
+            """, (ref, user_id))
             
-            # Aplica estilo e exibe
-            styled_df = estilizar_tabela(df)
+            result = cursor.fetchone()
+            if result and result[0] is not None:
+                valor = round(float(result[0]))
+                valor_formatado = f"{valor:,.0f}".replace(',', '.')
+            else:
+                valor_formatado = "0"
+            dados.append(valor_formatado)
+        
+        # Cria DataFrame - removida a coluna de índice
+        df = pd.DataFrame({
+            'Demandas de energia (MJ/1000kg de café)': [
+                'Total',
+                'Elétrica',
+                'Térmica',
+                'Renovável',
+                'Fóssil'
+            ],
+            'Simulação da Empresa': dados
+        }).reset_index(drop=True)  # Remove explicitamente o índice
+        
+        # Aplica estilo
+        styled_df = df.style.set_properties(**{
+            'text-align': 'left',
+            'padding': '10px',
+            'width': '50%'  # Define largura igual para ambas as colunas
+        }).set_table_styles([
+            {'selector': 'th', 'props': [
+                ('background-color', '#f0f0f0'),
+                ('text-align', 'center'),
+                ('padding', '10px'),
+                ('font-weight', 'bold'),
+                ('width', '50%')  # Define largura igual para cabeçalhos
+            ]},
+            {'selector': 'td', 'props': [
+                ('text-align', 'left'),
+                ('width', '50%')  # Define largura igual para células
+            ]},
+            {'selector': 'td:last-child', 'props': [
+                ('text-align', 'center')
+            ]},
+            # Esconde o índice
+            {'selector': '.index_name', 'props': [('display', 'none')]},
+            {'selector': '.row_heading', 'props': [('display', 'none')]},
+            {'selector': '.blank', 'props': [('display', 'none')]}
+        ])
+        
+        # Centraliza a tabela usando apenas uma coluna central
+        _, col, _ = st.columns([1,2,1])
+        with col:
             st.table(styled_df)
-            st.markdown("<br>", unsafe_allow_html=True)
-            
+        
     except Exception as e:
         st.error(f"Erro ao criar tabela AE: {str(e)}")
+        print(f"Erro detalhado: {str(e)}")
 
-def buscar_dados_tabela(cursor, select, user_id):
-    """Busca dados do banco para a tabela"""
-    return buscar_dados_grafico(cursor, select, user_id)  # Mesma lógica do gráfico
-
-def criar_dataframe_tabela(dados, series, categorias):
+def buscar_valor_referencia(cursor, referencia, user_id):
     """
-    Cria DataFrame para a tabela sem a coluna de índice
+    Busca o valor de uma referência específica no banco de dados.
     """
-    df_dict = {'Indicadores': series}
-    for i, categoria in enumerate(categorias):
-        df_dict[categoria] = [format_br_number(dados[i][j]) for j in range(4)]
-    
-    # Cria o DataFrame e usa a primeira coluna como índice
-    df = pd.DataFrame(df_dict)
-    return df.set_index('Indicadores')
-
-def estilizar_tabela(df):
-    """
-    Aplica estilos à tabela com colunas de largura igual
-    """
-    # Calcula a largura de cada coluna (100% dividido pelo número total de colunas)
-    num_colunas = len(df.columns) + 1  # +1 para incluir a coluna de índice
-    largura_coluna = f"{100/num_colunas}%"
-    
-    return df.style.set_properties(**{
-        'background-color': 'white',
-        'border': '1px solid #dee2e6',
-        'text-align': 'right',
-        'padding': '10px 12px',
-        'font-size': '20px',
-        'width': largura_coluna  # Define largura igual para todas as colunas
-    }).set_table_styles([
-        # Estilo geral da tabela
-        {'selector': '',
-         'props': [('border-collapse', 'collapse'),
-                  ('margin', '50px auto 25px auto'),
-                  ('width', '100%')]},  # Garante que a tabela ocupe toda a largura disponível
-        # Estilo do cabeçalho
-        {'selector': 'thead th',
-         'props': [
-             ('background-color', '#e8f5e9'),
-             ('font-weight', 'bold'),
-             ('border-bottom', '2px solid #dee2e6'),
-             ('font-size', '20px'),
-             ('width', largura_coluna)  # Largura igual para colunas do cabeçalho
-         ]},
-        # Estilo das linhas do corpo
-        {'selector': 'tbody tr',
-         'props': [('background-color', 'white')]},
-        # Estilo das células e do índice
-        {'selector': 'td, th',
-         'props': [
-             ('border-bottom', '1px solid #dee2e6'),
-             ('text-align', 'left'),
-             ('padding', '10px 12px'),
-             ('width', largura_coluna)  # Largura igual para todas as células
-         ]},
-        # Estilo específico para células de dados
-        {'selector': 'td',
-         'props': [('text-align', 'right')]},
-        # Estilo específico para o índice
-        {'selector': 'th',
-         'props': [
-             ('text-align', 'left'),
-             ('font-weight', 'normal'),
-             ('width', largura_coluna)  # Largura igual para coluna de índice
-         ]},
-    ])
+    try:
+        cursor.execute("""
+            SELECT value_element 
+            FROM forms_energetica 
+            WHERE name_element = ? AND user_id = ?
+        """, (referencia, user_id))
+        
+        resultado = cursor.fetchone()
+        if resultado:
+            return f"{resultado[0]:,.0f}"
+        return None
+        
+    except Exception as e:
+        print(f"Erro ao buscar valor de referência: {str(e)}")
+        return None
 
 if __name__ == "__main__":
     show_results()
