@@ -1,8 +1,8 @@
 # Arquivo: result_energetica.py
-# Data: 11/03/2025 16:00
+# Data: 17/03/2025 14:00
 # Pagina de Análise Energética - Torrefação
 # Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
-# ajustes layout Anna - versão 2
+# ajustes layout Anna - versão 2.1
 
 import streamlit as st
 import sqlite3
@@ -314,18 +314,16 @@ def grafico_ae(cursor, element):
         fig.update_layout(
             title=msg,
             barmode='group',
-            # xaxis_title="Categorias", # retirada para o gráfico ficar mais limpo
-            # yaxis_title="MJ/1000kg de café", # retirada para o gráfico ficar mais limpo
             showlegend=True,
             legend=dict(
-                orientation="h",  # horizontal
+                orientation="h",
                 yanchor="bottom",
-                y=-0.3,  # posição abaixo do gráfico
+                y=-0.4,  # Aumentado de -0.3 para -0.4 para dar mais espaço
                 xanchor="center",
-                x=0.5,  # centralizado
-                title=None  # remove o título "Valores"
+                x=0.5,
+                title=None
             ),
-            # Remove a barra de ferramentas
+            margin=dict(b=100),  # Aumenta a margem inferior para dar mais espaço
             modebar_remove=[
                 'zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 
                 'autoScale', 'resetScale', 'lasso2d', 'toImage'

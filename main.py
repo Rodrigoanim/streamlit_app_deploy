@@ -1,5 +1,5 @@
 # main.py
-# Data: 13/03/2025 - Hora: 07:00
+# Data: 17/03/2025 - Hora: 07:00
 # IDE Cursor - claude 3.5 sonnet
 # comando: streamlit run main.py
 # botão para zerar todos os type = input
@@ -101,7 +101,7 @@ def authenticate_user():
         """, unsafe_allow_html=True)
         
         # Login na sidebar
-        st.sidebar.title("Login - versão TSW 2.0")
+        st.sidebar.title("Login - versão TSW 2.1")
         email = st.sidebar.text_input("E-mail", key="email")
         password = st.sidebar.text_input("Senha", type="password", key="password", on_change=lambda: st.session_state.update({"enter_pressed": True}) if "password" in st.session_state else None)
         
