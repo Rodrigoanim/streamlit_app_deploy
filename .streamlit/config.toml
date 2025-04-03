@@ -3,7 +3,7 @@
 primaryColor="#074D67"  # Azul petróleo escuro (cor predominante no logotipo)
 backgroundColor="#FFFFFF"  # Branco (para manter a clareza da interface)
 # secondaryBackgroundColor="#F7E0C1"  # Bege claro (para destacar seções secundárias)
-secondaryBackgroundColor="#C1E1C1"  # Verde Suave Acinzentado → #C1E1C1 🍃 (Tom mais sóbrio e elegante)
+secondaryBackgroundColor="#C1E1C1"
 textColor="#31333F"  # Cinza escuro para manter boa legibilidade
 font="sans serif"  # Fonte padrão e legível
 
@@ -28,3 +28,4 @@ font="sans serif"  # Fonte padrão e legível
 # Default: "auto"
 # toolbarMode = "auto"
 toolbarMode = "minimal"
+

@@ -1,9 +1,9 @@
 # main.py
-# Data: 17/03/2025 - Hora: 07:00
+# Data: 03/04/2025 - Hora: 08:00
 # IDE Cursor - claude 3.5 sonnet
 # comando: streamlit run main.py
-# botão para zerar todos os type = input
 # ajustes TSW / Anna - redução de conteudo e ajustes de layout
+# logotipos no sidebar e rodapé
 
 import streamlit as st
 import sqlite3
@@ -40,6 +40,89 @@ st.set_page_config(
     },
     initial_sidebar_state="expanded"
 )
+
+# Adicionar verificação e carregamento do logo
+import os
+
+# Obtém o caminho absoluto do diretório atual
+current_dir = os.path.dirname(os.path.abspath(__file__))
+logo_path = os.path.join(current_dir, "ABIC_007a7d.jpg")
+
+# Adicionar o logotipo no sidebar usando st.sidebar.image
+st.sidebar.markdown("""
+    <style>
+        /* Estilo geral do sidebar */
+        [data-testid="stSidebar"] {
+            padding-top: 0rem;
+            background-color: #007a7d; # cor original #f0f0f0
+        }
+        
+        /* Estilo para títulos no sidebar */
+        [data-testid="stSidebar"] h1 {
+            color: #FFFFFF; # cor da fonte branca
+            font-size: 24px;
+            # font-weight: bold;
+            padding: 10px;
+        }
+        
+        /* Estilo para texto normal no sidebar */
+        [data-testid="stSidebar"] p {
+            color: #FFFFFF; 
+            font-size: 16px;
+            padding: 5px;
+        }
+        
+        /* Estilo para links no sidebar */
+        [data-testid="stSidebar"] a {
+            color: #007a7d;
+            text-decoration: none;
+        }
+        
+        /* Estilo para botões no sidebar */
+        [data-testid="stSidebar"] button {
+            background-color: #007a7d;
+            color: white;
+            border-radius: 5px;
+            padding: 8px 15px;
+        }
+        
+        /* Estilo para o menu de navegação */
+        [data-testid="stSidebarNav"] {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #ffffff;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 5px;
+        }
+        
+        /* Estilo para o container da imagem */
+        .css-1v0mbdj.e115fcil1 {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+        
+        /* Remove o ícone de fullscreen */
+        button[title="View fullscreen"] {
+            display: none !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# Verifica se o arquivo existe antes de tentar carregá-lo
+if os.path.exists(logo_path):
+    col1, col2, col3 = st.sidebar.columns([1,2,1])
+    with col2:
+        st.image(
+            logo_path,
+            width=150,  # ajuste este valor conforme necessário
+            use_container_width=True
+        )
+else:
+    st.sidebar.warning(f"Logo não encontrado em: {logo_path}")
 
 # Atualizar metadados Open Graph com informações mais específicas
 components.html(
@@ -92,24 +175,29 @@ def authenticate_user():
         col1, col2, col3 = st.columns([1, 20, 1])
         
         with col2:
-            # Imagem de capa usando pegada.jpg da raiz
-            st.image("pegada.jpg", use_container_width=True)
+            # Imagem de capa usando SPCC.jpg da raiz
+            st.image("SPCC.jpg", use_container_width=True)
             
         st.markdown("""
-            <p style='text-align: center; font-size: 35px;font-weight: bold;'>Simulador da Pegada de Carbono do Café Torrado/Moído</p>
-            <p style='text-align: center; font-size: 20px;'>Faça login para acessar o sistema</p>
+            <p style='text-align: center; font-size: 35px;'>Faça login para acessar o sistema</p>
         """, unsafe_allow_html=True)
         
         # Login na sidebar
-        st.sidebar.title("Login - versão TSW 2.1")
-        email = st.sidebar.text_input("E-mail", key="email")
-        password = st.sidebar.text_input("Senha", type="password", key="password", on_change=lambda: st.session_state.update({"enter_pressed": True}) if "password" in st.session_state else None)
-        
+        st.sidebar.markdown("<h1 style='color: white; font-size: 24px;'>SPCC - versão 2.2</h1>", unsafe_allow_html=True)
+
+        # Criar labels personalizados com cor branca
+        st.sidebar.markdown("<p style='color: white; margin-bottom: 5px;'>E-mail</p>", unsafe_allow_html=True)
+        email = st.sidebar.text_input("Email input", key="email", label_visibility="collapsed")
+
+        st.sidebar.markdown("<p style='color: white; margin-bottom: 5px;'>Senha</p>", unsafe_allow_html=True)
+        password = st.sidebar.text_input("Password input", type="password", key="password", 
+                                        label_visibility="collapsed",
+                                        on_change=lambda: st.session_state.update({"enter_pressed": True}) 
+                                        if "password" in st.session_state else None)
+
         col1, col2 = st.sidebar.columns(2)
         with col1:
-            login_button = st.button("Entrar") or st.session_state.get("enter_pressed", False)
-            if "enter_pressed" in st.session_state:
-                st.session_state.enter_pressed = False
+            login_button = st.button("Entrar")
         
         if login_button:
             cursor.execute("""
@@ -419,6 +507,20 @@ def main():
         show_diagnostics()
     elif section == "Zerar Valores":
         zerar_value_element()
+
+    # Após todo o código do menu, adicionar espaço e a imagem do rodapé
+    st.sidebar.markdown("<br>" * 2, unsafe_allow_html=True)
+    
+    # Logo do rodapé
+    footer_logo_path = os.path.join(current_dir, "pegada_cafe.jpg")
+    if os.path.exists(footer_logo_path):
+        col1, col2, col3 = st.sidebar.columns([1,2,1])
+        with col2:
+            st.image(
+                footer_logo_path,
+                width=150,
+                use_container_width=True
+            )
 
 def show_page(selected_simulation=None):
     """
