@@ -2,16 +2,10 @@
 #ABIC
 primaryColor="#074D67"  # Azul petróleo escuro (cor predominante no logotipo)
 backgroundColor="#FFFFFF"  # Branco (para manter a clareza da interface)
-# secondaryBackgroundColor="#F7E0C1"  # Bege claro (para destacar seções secundárias)
-secondaryBackgroundColor="#C1E1C1"
+
+secondaryBackgroundColor="#8eb0ae" # origina #C1E1C1
 textColor="#31333F"  # Cinza escuro para manter boa legibilidade
 font="sans serif"  # Fonte padrão e legível
-
-# primaryColor="#FF4B4B"
-# backgroundColor="#FFFFFF"
-# secondaryBackgroundColor="#F0F2F6"
-# textColor="#31333F"
-# font="sans serif"
 
 [client]
 # Change the visibility of items in the toolbar, options menu,

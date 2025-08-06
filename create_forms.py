@@ -1,10 +1,9 @@
 # Arquivo: create_forms.py
-# Data: 22/02/2025 - 15:12
+# Data: 15/07/2025 
 # Descrição: Script para atualizar atraves de um arquivo .txt
 # Tabelas: forms_tab, forms_insumos, forms_resultados, forms_result_sea, forms_setorial, forms_setorial_sea, forms_energetica
 # Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
 # Programa roda direto no Python - não usar o streamlit
-# Nova coluna - col_len
 
 
 import sqlite3
@@ -135,10 +134,9 @@ def select_table():
     selected_table = tk.StringVar(value=None)
     
     def on_select():
-        if selected_table.get():  # Only close if a selection was made
+        if selected_table.get():  # Só fecha se uma seleção foi feita
             root.quit()
-        else:
-            messagebox.showwarning("Aviso", "Por favor, selecione uma tabela")
+        # Se não houver seleção, não faz nada (não mostra warning)
     
     tk.Label(root, text="Selecione a tabela para importação:", pady=20).pack()
     
@@ -195,22 +193,19 @@ def verify_filename(selected_file, table_name):
     filename = os.path.basename(selected_file)
     expected_filename = expected_files.get(table_name)
     
+    # Se não houver expected_filename, retorna False
+    if not expected_filename:
+        return False
+    
     # Se o arquivo for o padrão, retorna True direto
     if filename.lower() == expected_filename.lower():
         return True
-        
+    
     # Se for diferente, mostra mensagem de confirmação com destaque em vermelho
-    message = f"""
-    ATENÇÃO! O arquivo selecionado não corresponde ao padrão esperado.
-    
-    \u001b[31mArquivo esperado: {expected_filename}
-    Arquivo selecionado: {filename}\u001b[0m
-    
-    Tem certeza que deseja prosseguir com este arquivo?
-    """
-    
-    # Cria uma janela personalizada para o aviso
-    dialog = tk.Toplevel()
+    import tkinter as tk
+    root = tk.Tk()
+    root.withdraw()
+    dialog = tk.Toplevel(root)
     dialog.title("Verificação de Arquivo")
     dialog.geometry("600x400")  # Aumentado para acomodar fontes maiores
     dialog.configure(bg='#ffcccc')  # Fundo vermelho claro
@@ -234,7 +229,6 @@ def verify_filename(selected_file, table_name):
     tk.Label(dialog, text="Tem certeza que deseja prosseguir com este arquivo?", 
              wraplength=500, font=("Arial", 16), bg='#ffcccc').pack(pady=20)
     
-    # Botões com fonte maior
     button_frame = tk.Frame(dialog, bg='#ffcccc')
     button_frame.pack(pady=20)
     tk.Button(button_frame, text="Sim", command=lambda: on_yes(), width=10, font=("Arial", 14)).pack(side=tk.LEFT, padx=10)
@@ -245,13 +239,15 @@ def verify_filename(selected_file, table_name):
     def on_yes():
         result[0] = True
         dialog.destroy()
-        
+        root.destroy()
+    
     def on_no():
         result[0] = False
         dialog.destroy()
+        root.destroy()
     
     # Torna a janela modal
-    dialog.transient(dialog.master)
+    dialog.transient(root)
     dialog.grab_set()
     dialog.wait_window()
     

@@ -12,5 +12,6 @@
             "name": "SSD CalcPC",
             "database": ".\\data\\calcpc.db"
         }
-    ]
+    ],
+    "sqltools.useNodeRuntime": true
 }

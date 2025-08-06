@@ -1,9 +1,9 @@
-# main.py
-# Data: 03/04/2025 - Hora: 08:00
-# IDE Cursor - claude 3.5 sonnet
-# comando: streamlit run main.py
-# ajustes TSW / Anna - redução de conteudo e ajustes de layout
-# logotipos no sidebar e rodapé
+# Data: 30/07/2025 - Hora: 18:00
+# IDE Cursor - claude-4 sonnet
+#  .\env\Scripts\Activate
+# streamlit run main.py
+# função para trocar de senha - OK
+# ajustes Textos Anna - versão 
 
 import streamlit as st
 import sqlite3
@@ -21,17 +21,17 @@ import streamlit.components.v1 as components
 
 # Configuração da página - deve ser a primeira chamada do Streamlit
 st.set_page_config(
-    page_title="Simulador da Pegada de Carbono do Café",  # Título simplificado
+    page_title="Ferramenta para Cálculo de Indicadores Ambientais da Produção de Café Torrado e Moído ",  # Título Aba Navegador
     page_icon="☕",
     layout="wide",
     menu_items={
         'About': """
-        ### Sobre o Sistema - Simulador da Pegada de Carbono do Café Torrado/Moído
+        ### Ferramenta para Cálculo de Indicadores Ambientais da Produção de Café Torrado e Moído 
         
-        Versão: 1.1. Beta
+        Versão: 3.3c - 05/08/2025
         
-        Este sistema foi desenvolvido para simular a pegada de carbono 
-        do processo de produção do café torrado/moído.
+        Esta Ferramenta foi desenvolvida para cálcular os indicadores ambientais da Produção de Café Torrado e Moído.
+        
         
         © 2025 Todos os direitos reservados. ABIC - Associação Brasileira de Indústrias de Café.
         """,
@@ -46,7 +46,19 @@ import os
 
 # Obtém o caminho absoluto do diretório atual
 current_dir = os.path.dirname(os.path.abspath(__file__))
-logo_path = os.path.join(current_dir, "ABIC_007a7d.jpg")
+logo_path = os.path.join(current_dir, "Logo_ABIC_8eb0ae.jpg")
+
+# --- CSS Global ---
+# Adiciona CSS para ocultar o botão de fullscreen das imagens globalmente
+st.markdown("""
+    <style>
+        /* Oculta o botão baseado no aria-label identificado na inspeção */
+        button[aria-label="Fullscreen"] {
+            display: none !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+# --- Fim CSS Global ---
 
 # Adicionar o logotipo no sidebar usando st.sidebar.image
 st.sidebar.markdown("""
@@ -54,7 +66,7 @@ st.sidebar.markdown("""
         /* Estilo geral do sidebar */
         [data-testid="stSidebar"] {
             padding-top: 0rem;
-            background-color: #007a7d; # cor original #f0f0f0
+            background-color: #8eb0ae; # cor anterior #007a7d
         }
         
         /* Estilo para títulos no sidebar */
@@ -74,13 +86,13 @@ st.sidebar.markdown("""
         
         /* Estilo para links no sidebar */
         [data-testid="stSidebar"] a {
-            color: #007a7d;
+            color: #53a7a9;
             text-decoration: none;
         }
         
         /* Estilo para botões no sidebar */
         [data-testid="stSidebar"] button {
-            background-color: #007a7d;
+            background-color: #53a7a9; # cor anterior #007a7d
             color: white;
             border-radius: 5px;
             padding: 8px 15px;
@@ -105,8 +117,8 @@ st.sidebar.markdown("""
             padding: 1rem;
         }
         
-        /* Remove o ícone de fullscreen */
-        button[title="View fullscreen"] {
+        /* Remove o ícone de fullscreen usando o seletor aria-label (regra específica do sidebar mantida por segurança, embora a global deva cobrir) */
+        [data-testid="stSidebar"] button[aria-label="Fullscreen"] {
             display: none !important;
         }
     </style>
@@ -124,35 +136,36 @@ if os.path.exists(logo_path):
 else:
     st.sidebar.warning(f"Logo não encontrado em: {logo_path}")
 
-# Atualizar metadados Open Graph com informações mais específicas
-components.html(
-    """
-    <head>
-        <title>Simulador da Pegada de Carbono do Café Torrado/Moído</title>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="Simulador da ABIC para cálculo da pegada de carbono do café torrado/moído">
-        
-        <!-- Open Graph / Facebook -->
-        <meta property="og:type" content="website">
-        <meta property="og:url" content="https://apc.ag93app.com.br/?v=1.0">
-        <meta property="og:title" content="Simulador da Pegada de Carbono do Café Torrado/Moído">
-        <meta property="og:description" content="Ferramenta da ABIC para simulação da pegada de carbono do café torrado/moído">
-        <meta property="og:image" content="https://ag93eventos.com.br/anim/pegada2.jpg?v=1.0">
-        <meta property="og:site_name" content="Simulador Pegada de Carbono">    
-           
-        <!-- Adicional SEO -->
-        <meta name="author" content="ABIC">
-        <meta name="keywords" content="café, pegada de carbono, sustentabilidade, ABIC, café torrado, café moído">
-        <link rel="canonical" href="https://apc.ag93app.com.br/">
-    </head>
-    """,
-    height=0,
-    width=0
-)
+
 
 def authenticate_user():
     """Autentica o usuário e verifica seu perfil no banco de dados."""
+    # Adicionar CSS para a página de login
+    if not st.session_state.get("logged_in", False):
+        st.markdown("""
+            <style>
+                /* Estilo para a página de login */
+                [data-testid="stAppViewContainer"] {
+                    background-color: #007a7d;
+                }
+                
+                /* Remove a faixa branca superior */
+                [data-testid="stHeader"] {
+                    background-color: #007a7d;
+                }
+                
+                /* Ajuste da cor do texto para melhor contraste */
+                [data-testid="stAppViewContainer"] p {
+                    color: white;
+                }
+                
+                /* Mantém o fundo do sidebar na cor original */
+                [data-testid="stSidebar"] {
+                    background-color: #8eb0ae !important;
+                }
+            </style>
+        """, unsafe_allow_html=True)
+    
     # Verifica se o banco existe
     if not DB_PATH.exists():
         st.error(f"Banco de dados não encontrado em {DB_PATH}")
@@ -179,11 +192,11 @@ def authenticate_user():
             st.image("SPCC.jpg", use_container_width=True)
             
         st.markdown("""
-            <p style='text-align: center; font-size: 35px;'>Faça login para acessar o sistema</p>
+            <p style='text-align: center; font-size: 35px;'></p> 
         """, unsafe_allow_html=True)
         
-        # Login na sidebar
-        st.sidebar.markdown("<h1 style='color: white; font-size: 24px;'>SPCC - versão 2.2</h1>", unsafe_allow_html=True)
+        # Login na sidebar - versão 3.3c
+        st.sidebar.markdown("<h1 style='color: white; font-size: 24px;'>FCIAPC - ver. 3.3c</h1>", unsafe_allow_html=True)
 
         # Criar labels personalizados com cor branca
         st.sidebar.markdown("<p style='color: white; margin-bottom: 5px;'>E-mail</p>", unsafe_allow_html=True)
@@ -195,13 +208,41 @@ def authenticate_user():
                                         on_change=lambda: st.session_state.update({"enter_pressed": True}) 
                                         if "password" in st.session_state else None)
 
+        # Adiciona o checkbox de aceite dos termos
+        st.sidebar.markdown("""
+            <style>
+                /* Estilo para o link dos termos */
+                a {
+                    color: white !important;
+                    text-decoration: underline !important;
+                }
+                /* Estilo para o checkbox e seu texto */
+                .stCheckbox {
+                    color: white !important;
+                }
+                .stCheckbox label {
+                    color: white !important;
+                }
+                .stCheckbox a {
+                    color: white !important;
+                    text-decoration: underline !important;
+                }
+            </style>
+        """, unsafe_allow_html=True)
+
+        # link e path do arquivo termos_de_uso.pdf
+        aceite_termos = st.sidebar.checkbox(
+            'Declaro que li e aceito os termos de uso da [Ferramenta de Cálculo de Indicadores Ambientais da Produção de Café Torrado e Moído](https://ag93eventos.com.br/abic/termos_de_uso.pdf)',
+            key='aceite_termos'
+        )
+
         col1, col2 = st.sidebar.columns(2)
         with col1:
-            login_button = st.button("Entrar")
+            login_button = st.button("Entrar", disabled=not aceite_termos)
         
-        if login_button:
+        if login_button and aceite_termos:
             cursor.execute("""
-                SELECT id, user_id, perfil, nome FROM usuarios WHERE email = ? AND senha = ?
+                SELECT id, user_id, perfil, nome FROM usuarios WHERE LOWER(email) = LOWER(?) AND senha = ?
             """, (email, password))
             user = cursor.fetchone()
 
@@ -218,7 +259,7 @@ def authenticate_user():
                     acao="login"
                 )
                 
-                st.sidebar.success(f"Login bem-sucedido! Bem-vindo, {user[3]}.")
+                st.sidebar.success(f"Login bem-sucedido. {user[3]}.")
                 st.rerun()
             else:
                 st.sidebar.error("E-mail ou senha inválidos.")
@@ -237,10 +278,7 @@ def get_timezone_offset():
     return datetime.now()  # Se local, usa hora atual
 
 def show_welcome():
-    """Exibe a tela de boas-vindas com informações do usuário"""
-    st.markdown("""
-        <p style='text-align: left; font-size: 40px; font-weight: bold;'>Bem-vindo ao sistema!</p>
-    """, unsafe_allow_html=True)
+    """Exibe a tela de boas-vindas"""
     
     # Buscar dados do usuário
     conn = sqlite3.connect(DB_PATH)
@@ -258,61 +296,37 @@ def show_welcome():
     empresa = user_info[1] if user_info[1] is not None else "Não informada"
     
     # Layout em colunas usando st.columns
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
-    # Coluna 1: Dados do Usuário
+    # Coluna 1: Informações da Ferramenta
     with col1:
         st.markdown(f"""
-            <div style="background-color: #e8f4f8; padding: 20px; border-radius: 8px;">
-                <p style="color: #2c3e50; font-size: 24px;">Seus Dados</p>
-                <div style="color: #34495e; font-size: 16px;">
-                    <p>ID: {st.session_state.get('user_id')}</p>
-                    <p>Nome: {st.session_state.get('user_name')}</p>
-                    <p>E-mail: {user_info[0]}</p>
-                    <p>Empresa: {empresa}</p>
-                    <p>Perfil: {st.session_state.get('user_profile')}</p>
+            <div style="background-color: #007a7d; padding: 20px; border-radius: 8px;">
+                <div style="color: #ffffff; font-size: 16px; line-height: 1.6;">
+                    <p>Bem vindo(a) à ferramenta desenvolvida para os associados da ABIC para auxiliar ao usuário a prever os principais indicadores ambientais da produção de café torrado e moído.</p>
+                    <p>Através desta ferramenta é possível prever como alterações na seleção de fornecedores de café e insumos na industrialização do mesmo afetam os indicadores relativos à Pegada de Carbono, às Demandas de Energia e Água e a Geração de Resíduos sólidos.</p>
+                    <p>Os dados industriais refletem a média dos valores coletados durante a realização do projeto "Pegada de Carbono de Café Torrado e Moído no Brasil" no ano de 2023.</p>
                 </div>
             </div>
         """, unsafe_allow_html=True)
     
-    # Coluna 2: Atividades (atualizada com hora)
+    # Coluna 2: Informações sobre Indicadores
     with col2:
-        current_time = get_timezone_offset()
-        ambiente = "Produção" if os.getenv('RENDER') else "Local"
-        
         st.markdown(f"""
-            <div style="background-color: #e8f8ef; padding: 20px; border-radius: 8px;">
-                <p style="color: #2c3e50; font-size: 24px;">Suas Atividades</p>
-                <div style="color: #34495e; font-size: 16px;">
-                    <p>Data Atual: {current_time.strftime('%d/%m/%Y')}</p>
-                    <p>Hora Atual: {current_time.strftime('%H:%M:%S')}</p>
-                    <p>Ambiente: {ambiente}</p>
+            <div style="background-color: #53a7a9; padding: 20px; border-radius: 8px;">
+                <div style="color: #ffffff; font-size: 16px; line-height: 1.6;">
+                    <p>Esta ferramenta foi criada para cálculo dos indicadores ambientais considerando as etapas agrícola, de transporte até a industrialização, de torrefação e/ou moagem e de acondicionamento em embalagem primária.</p>
+                    <p>São calculados os indicadores ambientais de Pegada de Carbono, Demandas de Energia e Água e de Geração de Resíduos sólidos (*).</p>
+                    <p>A unidade funcional do projeto são 1000kg de café torrado e moído acondicionados em embalagem primária.</p>
+                    <p>(*) Resíduos com atual baixo potencial de aproveitamento dentro das fronteiras do estudo.</p>
                 </div>
             </div>
         """, unsafe_allow_html=True)
     
-    # Coluna 3: Módulos
-    with col3:
-        modulos_html = """
-            <div style="background-color: #fff8e8; padding: 20px; border-radius: 8px;">
-                <p style="color: #2c3e50; font-size: 24px;">Módulos Disponíveis</p>
-                <div style="color: #34495e; font-size: 16px;">
-                    <p>Entrada de Dados - Tipo do Café</p>
-                    <p>Entrada de Dados - Torrefação e Moagem</p>
-                    <p>Entrada de Dados - Embalagem</p>
-                    <p>Simulações da Empresa</p>
-                    <p>Simulações da Empresa Sem Etapa Agrícola</p>
-                    <p>Simulações - Comparação Setorial</p>
-                    <p>Simulações - Comparação Setorial Sem Etapa Agrícola</p>
-                    <p>Simulações - Análise Energética - Torrefação</p>
-                </div>
-            </div>
-        """
-        
-        st.markdown(modulos_html, unsafe_allow_html=True)
+
 
 def zerar_value_element():
-    """Função para zerar todos os value_element do usuário logado na tabela forms_tab onde type_element é input, formula ou formulaH"""
+    """Função para zerar todos os value_element do usuário logado na tabela forms_tab onde type_element é input ou formula"""
     # Inicializa o estado do checkbox se não existir
     if 'confirma_zeragem' not in st.session_state:
         st.session_state.confirma_zeragem = False
@@ -334,7 +348,7 @@ def zerar_value_element():
                     SET value_element = 0.0 
                     WHERE user_id = ? 
                     AND value_element IS NOT NULL
-                    AND type_element IN ('input', 'formula', 'formulaH')
+                    AND type_element IN ('input', 'formula')
                 """, (st.session_state["user_id"],))
                 
                 registros_afetados = cursor.rowcount
@@ -362,6 +376,87 @@ def zerar_value_element():
         else:
             st.sidebar.warning("Confirme a operação para prosseguir")
 
+def trocar_senha():
+    """Função para permitir que o usuário troque sua senha"""
+    st.markdown("""
+        <p style='text-align: center; font-size: 30px; font-weight: bold;'>
+            Trocar Senha
+        </p>
+    """, unsafe_allow_html=True)
+    
+    # Criar formulário para troca de senha
+    with st.form("form_trocar_senha"):
+        st.markdown("**Digite sua senha atual:**")
+        senha_atual = st.text_input("Senha atual", type="password", key="senha_atual")
+        
+        st.markdown("**Digite a nova senha:**")
+        nova_senha = st.text_input("Nova senha", type="password", key="nova_senha")
+        
+        st.markdown("**Confirme a nova senha:**")
+        confirmar_senha = st.text_input("Confirmar nova senha", type="password", key="confirmar_senha")
+        
+        submitted = st.form_submit_button("Trocar Senha")
+        
+        if submitted:
+            # Validações
+            if not senha_atual or not nova_senha or not confirmar_senha:
+                st.error("Todos os campos são obrigatórios!")
+                return
+            
+            if nova_senha != confirmar_senha:
+                st.error("As senhas não coincidem!")
+                return
+            
+            if len(nova_senha) < 4:
+                st.error("A nova senha deve ter pelo menos 4 caracteres!")
+                return
+            
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                
+                # Verificar se a senha atual está correta
+                cursor.execute("""
+                    SELECT id, user_id, nome FROM usuarios 
+                    WHERE user_id = ? AND senha = ?
+                """, (st.session_state.get('user_id'), senha_atual))
+                
+                user = cursor.fetchone()
+                
+                if not user:
+                    st.error("Senha atual incorreta!")
+                    conn.close()
+                    return
+                
+                # Atualizar a senha
+                cursor.execute("""
+                    UPDATE usuarios 
+                    SET senha = ? 
+                    WHERE user_id = ?
+                """, (nova_senha, st.session_state.get('user_id')))
+                
+                conn.commit()
+                conn.close()
+                
+                # Registrar a ação no monitor
+                registrar_acesso(
+                    user_id=st.session_state["user_id"],
+                    programa="main.py",
+                    acao="trocar_senha"
+                )
+                
+                st.success("Senha alterada com sucesso!")
+                
+                # Limpar os campos (removido para evitar erro de Streamlit)
+                # st.session_state.senha_atual = ""
+                # st.session_state.nova_senha = ""
+                # st.session_state.confirmar_senha = ""
+                
+            except Exception as e:
+                st.error(f"Erro ao trocar senha: {str(e)}")
+                if 'conn' in locals():
+                    conn.close()
+
 def main():
     """Gerencia a navegação entre as páginas do sistema."""
     # Verifica se o diretório data existe
@@ -383,10 +478,10 @@ def main():
     if "previous_page" not in st.session_state:
         st.session_state["previous_page"] = None
     
-    # Titulo da página
+    # Titulo da página Principal
     st.markdown("""
-        <p style='text-align: left; font-size: 44px; font-weight: bold;'>
-            Simulador da Pegada de Carbono do Café Torrado/Moído
+        <p style='text-align: center; font-size: 32px; font-weight: bold;'>
+            Ferramenta para Cálculo de Indicadores Ambientais <br> da Produção de Café Torrado e Moído
         </p>
     """, unsafe_allow_html=True)
 
@@ -431,10 +526,10 @@ def main():
             "Embalagem"
         ],
         "Simulações": [
-            "da Empresa",
-            "da Empresa sem Etapa Agrícola",
-            "Comparação Setorial",
-            "Comparação Setorial SEA",
+            "Empresa com Etapa Agrícola",
+            "Empresa sem Etapa Agrícola",
+            "Setorial com Etapa Agrícola",
+            "Setorial sem Etapa Agrícola",
             "Análise Energética - Torrefação"
         ],
         "Administração": []  # Iniciando vazio para adicionar itens na ordem correta
@@ -447,6 +542,8 @@ def main():
         menu_groups["Administração"].append("Diagnóstico")
     if user_profile and user_profile.lower() in ["adm", "master"]:
         menu_groups["Administração"].append("Monitor de Uso")
+    # Adicionar Trocar Senha (disponível para todos os perfis)
+    menu_groups["Administração"].append("Trocar Senha")
     # Adicionar Zerar Valores por último
     menu_groups["Administração"].append("Zerar Valores")
     
@@ -456,14 +553,14 @@ def main():
     
     # Criar seletor de grupo
     selected_group = st.sidebar.selectbox(
-        "Selecione o módulo:",
+        "Selecione o Módulo:",
         options=list(menu_groups.keys()),
         key="group_selection"
     )
     
     # Criar seletor de página dentro do grupo
     section = st.sidebar.radio(
-        "Selecione a página:",
+        "Selecione a Página:",
         menu_groups[selected_group],
         key="menu_selection"
     )
@@ -479,18 +576,15 @@ def main():
     elif section in ["Tipo do Café", "Torrefação e Moagem", "Embalagem"]:
         process_forms_tab(section_map[section])
     elif section in [
-        "da Empresa",
-        "da Empresa sem Etapa Agrícola",
-        "Comparação Setorial",
-        "Comparação Setorial SEA"
+        "Empresa com Etapa Agrícola",
+        "Empresa sem Etapa Agrícola",
+        "Setorial com Etapa Agrícola",
+        "Setorial sem Etapa Agrícola"
     ]:
-        # Mapeamento de seções para títulos completos
-        section_to_title = {
-            "da Empresa": "Simulações da Empresa",
-            "da Empresa sem Etapa Agrícola": "Simulações da Empresa Sem Etapa Agrícola",
-            "Comparação Setorial": "Simulações - Comparação Setorial",
-            "Comparação Setorial SEA": "Simulações - Comparação Setorial Sem Etapa Agrícola"
-        }
+        # Importa configurações centralizadas de subtítulos
+        from paginas.resultados import get_subtitle_configs
+        configs = get_subtitle_configs()
+        section_to_title = configs["section_to_title"]
         # Passa o título completo para show_page
         show_page(selected_simulation=section_to_title[section])
     elif section == "Análise Energética - Torrefação":
@@ -505,21 +599,23 @@ def main():
     elif section == "Diagnóstico":
         from paginas.diagnostico import show_diagnostics
         show_diagnostics()
+    elif section == "Trocar Senha":
+        trocar_senha()
     elif section == "Zerar Valores":
         zerar_value_element()
 
     # Após todo o código do menu, adicionar espaço e a imagem do rodapé
-    st.sidebar.markdown("<br>" * 2, unsafe_allow_html=True)
+    st.sidebar.markdown("<br>" * 1, unsafe_allow_html=True)
     
     # Logo do rodapé
-    footer_logo_path = os.path.join(current_dir, "pegada_cafe.jpg")
+    footer_logo_path = os.path.join(current_dir, "Logo_Pegada_8eb0ae.jpg")
     if os.path.exists(footer_logo_path):
         col1, col2, col3 = st.sidebar.columns([1,2,1])
         with col2:
             st.image(
                 footer_logo_path,
-                width=150,
-                use_container_width=True
+                width=100, 
+                use_container_width=False  # Alterado para False para respeitar o width definido
             )
 
 def show_page(selected_simulation=None):
@@ -528,25 +624,9 @@ def show_page(selected_simulation=None):
     Args:
         selected_simulation: Título da simulação selecionada
     """
-    # Mapeamento de páginas para tabelas e títulos
-    PAGES_CONFIG = {
-        "Simulações da Empresa": {
-            "tabela": "forms_resultados",
-            "titulo": "Simulações da Empresa"
-        },
-        "Simulações da Empresa Sem Etapa Agrícola": {
-            "tabela": "forms_result_sea",
-            "titulo": "Simulações da Empresa Sem Etapa Agrícola"
-        },
-        "Simulações - Comparação Setorial": {
-            "tabela": "forms_setorial",
-            "titulo": "Simulações - Comparação Setorial"
-        },
-        "Simulações - Comparação Setorial Sem Etapa Agrícola": {
-            "tabela": "forms_setorial_sea",
-            "titulo": "Simulações - Comparação Setorial Sem Etapa Agrícola"
-        }
-    }
+    # Importa configurações centralizadas de páginas
+    from paginas.resultados import get_pages_config
+    PAGES_CONFIG = get_pages_config()
 
     # Verifica se usuário está logado
     if "user_id" not in st.session_state:

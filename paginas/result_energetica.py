@@ -1,8 +1,8 @@
 # Arquivo: result_energetica.py
-# Data: 17/03/2025 14:00
+# Data: 31/07/2025 15:00
 # Pagina de Análise Energética - Torrefação
 # Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
-# ajustes layout Anna - versão 2.1
+# ajustes layout Anna - versão 3.3b
 
 import streamlit as st
 import sqlite3
@@ -11,6 +11,15 @@ import plotly.express as px
 import plotly.graph_objects as go
 from config import DB_PATH  # Adicione esta importação
 from paginas.form_model_recalc import verificar_dados_usuario, calculate_formula, atualizar_formulas
+import io
+import time
+import traceback
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
+)
 
 def format_br_number(value):
     """
@@ -156,7 +165,7 @@ def subtitulo():
         <p style='
             text-align: Left;
             font-size: 36px;
-            color: #4A4A4A;
+            color: #000000;
             margin-top: 4px;
             margin-bottom: 25px;
             font-family: sans-serif;
@@ -177,6 +186,54 @@ def show_results():
         
         # Adiciona o subtítulo no início da página
         subtitulo()
+        
+        # Botão Gerar PDF na coluna da direita
+        col_esq, col_centro, col_dir = st.columns([3,2,3])
+        with col_dir:
+            gerar_pdf = st.button("Gerar PDF", type="primary", key="btn_gerar_pdf_energetica")
+        with col_centro:
+            msg_placeholder = st.empty()
+        if gerar_pdf:
+            try:
+                msg_placeholder.info("Gerando PDF... Por favor, aguarde.")
+                for _ in range(3):
+                    try:
+                        conn = sqlite3.connect(DB_PATH, timeout=20)
+                        cursor = conn.cursor()
+                        break
+                    except sqlite3.OperationalError as e:
+                        if "database is locked" in str(e):
+                            time.sleep(1)
+                            continue
+                        raise e
+                else:
+                    st.error("Não foi possível conectar ao banco de dados. Tente novamente.")
+                    return
+                buffer = generate_pdf_content_energetica(cursor, st.session_state.user_id)
+                if buffer:
+                    conn.close()
+                    msg_placeholder.success("PDF gerado com sucesso!")
+                    # Centralizar o botão de download
+                    col_esq_dl, col_centro_dl, col_dir_dl = st.columns([3,2,3])
+                    with col_centro_dl:
+                        # Gera nome do arquivo baseado no subtítulo
+                        titulo_arquivo = "Análise Energética - Torrefação"
+                        # Remove caracteres especiais e substitui espaços por underscores
+                        nome_arquivo = titulo_arquivo.replace(" ", "_").replace("-", "_").replace(":", "").lower()
+                        nome_arquivo = f"{nome_arquivo}.pdf"
+                        
+                        st.download_button(
+                            label="Baixar PDF",
+                            data=buffer.getvalue(),
+                            file_name=nome_arquivo,
+                            mime="application/pdf",
+                        )
+            except Exception as e:
+                msg_placeholder.error(f"Erro ao gerar PDF: {str(e)}")
+                st.write("Debug: Stack trace completo:", traceback.format_exc())
+            finally:
+                if 'conn' in locals() and conn:
+                    conn.close()
         
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -214,10 +271,13 @@ def show_results():
         
         # Processa linha por linha
         for e_row in sorted(row_elements.keys()):
-            # Primeiro verifica se tem tabela_ae nesta linha para mostrar o título
+            # Exibe a tabela apenas para o primeiro elemento do tipo 'tabela_ae' de cada linha
+            tabela_exibida = False
+            elementos_nao_tabela = []
+            
+            # Primeiro, processa a tabela se existir
             for element in row_elements[e_row]:
-                if element[1] == 'tabela_ae':
-                    # Título centralizado ANTES de processar os elementos da linha
+                if element[1] == 'tabela_ae' and not tabela_exibida:
                     st.markdown(f"""
                         <p style='
                             text-align: center;
@@ -228,20 +288,17 @@ def show_results():
                             font-family: sans-serif;
                         '>{element[3]}</p>
                     """, unsafe_allow_html=True)
-                    
-                    # Para tabelas, usar container único sem colunas
-                    for elem in row_elements[e_row]:
-                        if elem[1] == 'tabela_ae':
-                            tabela_ae(cursor, elem)
-                    break
-            else:
-                # Para outros elementos, manter as duas colunas
+                    tabela_ae(cursor, element)
+                    tabela_exibida = True
+                elif element[1] != 'tabela_ae':
+                    elementos_nao_tabela.append(element)
+            
+            # Depois processa os outros elementos em duas colunas
+            if elementos_nao_tabela:
                 with st.container():
                     col1, col2 = st.columns(2)
-                    
-                    for element in row_elements[e_row]:
+                    for element in elementos_nao_tabela:
                         e_col = element[7]
-                        
                         if e_col <= 3:
                             with col1:
                                 if element[1] == 'titulo':
@@ -263,10 +320,47 @@ def show_results():
                                 elif element[1] == 'grafico_ae':
                                     grafico_ae(cursor, element)
         
-        conn.close()
-        
     except Exception as e:
         st.error(f"Erro ao carregar resultados: {str(e)}")
+
+def create_br_ticks(max_value):
+    """
+    Cria valores de tick formatados no padrão brasileiro para o eixo Y
+    """
+    try:
+        if max_value <= 0:
+            return [0], ["0"]
+        
+        # Determina o intervalo apropriado baseado no valor máximo
+        if max_value <= 100:
+            step = 20
+        elif max_value <= 500:
+            step = 100
+        elif max_value <= 1000:
+            step = 200
+        elif max_value <= 5000:
+            step = 1000
+        elif max_value <= 10000:
+            step = 2000
+        else:
+            step = int(max_value / 5)
+            # Arredonda o step para um número "bonito"
+            step = round(step / 1000) * 1000 if step > 1000 else step
+        
+        # Cria lista de valores
+        tick_vals = []
+        current = 0
+        while current <= max_value * 1.1:  # 10% a mais que o máximo
+            tick_vals.append(current)
+            current += step
+        
+        # Formata os valores usando a função brasileira
+        tick_texts = [format_br_number(val) for val in tick_vals]
+        
+        return tick_vals, tick_texts
+    except Exception as e:
+        print(f"Erro ao criar ticks brasileiros: {str(e)}")
+        return [0], ["0"]
 
 def grafico_ae(cursor, element):
     """
@@ -276,32 +370,30 @@ def grafico_ae(cursor, element):
         # Extrai dados do elemento
         select = element[5]      # select_element
         rotulos = element[6]     # str_element
-        msg = element[3]         # msg_element
+        msg = element[3]         # msg_element (título do gráfico)
         user_id = element[10]    # user_id
-        
         if not select or not rotulos:
             st.warning("Dados insuficientes para criar o gráfico.")
             return
-            
         # Configurações do gráfico
         series = ['Simulação', 'Menor valor setorial', 'Média setorial', 'Maior valor setorial']
-        cores = ['#00008B', '#ADD8E6', '#3CB371', '#FFA500']
-        
+        cores = ['#00008B', '#8eb0ae', '#53a7a9', '#007a7d']
         # Processa dados
         categorias = rotulos.split('|')
         dados = buscar_dados_grafico(cursor, select, user_id)
-        
         if not dados:
             st.warning("Não foram encontrados dados para o gráfico.")
             return
-            
         # Cria DataFrame para plotly
         df_plot = pd.DataFrame(dados, columns=series)
         df_plot.index = categorias
         
+        # Encontra o valor máximo para criar ticks brasileiros
+        max_value = df_plot.values.max() if len(dados) > 0 else 0
+        tick_vals, tick_texts = create_br_ticks(max_value)
+        
         # Cria gráfico
         fig = go.Figure()
-        
         for i, serie in enumerate(series):
             fig.add_trace(go.Bar(
                 name=serie,
@@ -309,31 +401,43 @@ def grafico_ae(cursor, element):
                 y=df_plot[serie],
                 marker_color=cores[i]
             ))
-            
         # Layout
         fig.update_layout(
-            title=msg,
+            title=dict(
+                text=msg if msg and msg.lower() != 'undefined' else '',
+                x=0.5,
+                y=0.95,
+                xanchor='center',
+                yanchor='top',
+                font=dict(size=18)
+            ),
             barmode='group',
             showlegend=True,
             legend=dict(
                 orientation="h",
                 yanchor="bottom",
-                y=-0.4,  # Aumentado de -0.3 para -0.4 para dar mais espaço
+                y=-0.4,
                 xanchor="center",
                 x=0.5,
                 title=None
             ),
-            margin=dict(b=100),  # Aumenta a margem inferior para dar mais espaço
+            margin=dict(b=100),
             modebar_remove=[
                 'zoom', 'pan', 'select', 'zoomIn', 'zoomOut', 
                 'autoScale', 'resetScale', 'lasso2d', 'toImage'
             ],
-            height=400
+            height=400,
+            xaxis=dict(
+                tickangle=0,
+                tickfont=dict(size=14)  # tamanho do fonte do eixo X
+            ),
+            yaxis=dict(
+                tickvals=tick_vals,
+                ticktext=tick_texts
+            )
         )
-        
         # Exibe
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-        
     except Exception as e:
         st.error(f"Erro ao criar gráfico AE: {str(e)}")
         print(f"Erro detalhado: {str(e)}")
@@ -398,7 +502,7 @@ def tabela_ae(cursor, element):
                 valor_formatado = "0"
             dados.append(valor_formatado)
         
-        # Cria DataFrame - removida a coluna de índice
+        # Cria DataFrame
         df = pd.DataFrame({
             'Demandas de energia (MJ/1000kg de café)': [
                 'Total',
@@ -408,38 +512,50 @@ def tabela_ae(cursor, element):
                 'Fóssil'
             ],
             'Simulação da Empresa': dados
-        }).reset_index(drop=True)  # Remove explicitamente o índice
-        
-        # Aplica estilo
-        styled_df = df.style.set_properties(**{
-            'text-align': 'left',
-            'padding': '10px',
-            'width': '50%'  # Define largura igual para ambas as colunas
-        }).set_table_styles([
-            {'selector': 'th', 'props': [
-                ('background-color', '#f0f0f0'),
-                ('text-align', 'center'),
-                ('padding', '10px'),
-                ('font-weight', 'bold'),
-                ('width', '50%')  # Define largura igual para cabeçalhos
-            ]},
-            {'selector': 'td', 'props': [
-                ('text-align', 'left'),
-                ('width', '50%')  # Define largura igual para células
-            ]},
-            {'selector': 'td:last-child', 'props': [
-                ('text-align', 'center')
-            ]},
-            # Esconde o índice
-            {'selector': '.index_name', 'props': [('display', 'none')]},
-            {'selector': '.row_heading', 'props': [('display', 'none')]},
-            {'selector': '.blank', 'props': [('display', 'none')]}
-        ])
-        
-        # Centraliza a tabela usando apenas uma coluna central
+        }, index=None)
+
+        # Aplica estilos CSS
+        styles = [
+            {
+                'selector': '',
+                'props': [('border-collapse', 'collapse')]
+            },
+            {
+                'selector': 'thead th',
+                'props': [
+                    ('background-color', '#e8f5e9'),
+                    ('color', 'black'),
+                    ('font-weight', 'bold'),
+                    ('text-align', 'center'),
+                    ('padding', '12px'),
+                    ('border', '1px solid #ddd')
+                ]
+            },
+            {
+                'selector': 'td',
+                'props': [
+                    ('padding', '10px'),
+                    ('border', '1px solid #ddd'),
+                    ('text-align', 'left')
+                ]
+            }
+        ]
+
+        # Aplica estilos e configurações
+        styled_df = df.style\
+            .set_table_styles(styles)\
+            .apply(lambda x: ['background-color: #f5f5f5' if i % 2 == 0 else 'background-color: white' for i in range(len(x))], axis=0)\
+            .set_properties(**{'text-align': 'left'})\
+            .set_properties(subset=['Simulação da Empresa'], **{'text-align': 'center'})
+
+        # Centraliza a tabela usando colunas
         _, col, _ = st.columns([1,2,1])
         with col:
-            st.table(styled_df)
+            st.dataframe(
+                styled_df,
+                use_container_width=True,
+                hide_index=True
+            )
         
     except Exception as e:
         st.error(f"Erro ao criar tabela AE: {str(e)}")
@@ -463,6 +579,274 @@ def buscar_valor_referencia(cursor, referencia, user_id):
         
     except Exception as e:
         print(f"Erro ao buscar valor de referência: {str(e)}")
+        return None
+
+def generate_pdf_content_energetica(cursor, user_id: int):
+    """
+    Gera o PDF da Análise Energética para o usuário logado:
+    Página 1: Tabela e gráfico Demandas Elétricas e Térmicas
+    Página 2: gráfico Demandas Energias Fóssil e Renovável
+    """
+    try:
+        # Configurações de layout
+        base_width = 250
+        base_height = 180
+        graph_width = base_width * 2.2 * 0.8
+        graph_height = 300
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=36,
+            leftMargin=36,
+            topMargin=36,
+            bottomMargin=36
+        )
+
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=21,  # Reduzido 20% (26 → 21)
+            alignment=1,
+            textColor=colors.HexColor('#1E1E1E'),
+            fontName='Helvetica',
+            leading=21,  # Ajustado proporcionalmente
+            spaceBefore=15,
+            spaceAfter=20,
+        )
+        subtitle_style = ParagraphStyle(
+            'CustomSubtitle',
+            parent=styles['Heading2'],
+            fontSize=18,  # Mantido tamanho original
+            alignment=1,
+            textColor=colors.HexColor('#1E1E1E'),
+            fontName='Helvetica',
+            leading=22,  # Valor original
+            spaceBefore=10,
+            spaceAfter=15
+        )
+        graphic_title_style = ParagraphStyle(
+            'GraphicTitle',
+            parent=styles['Heading2'],
+            fontSize=11,  # Reduzido 20% (14 → 11)
+            alignment=1,
+            textColor=colors.HexColor('#1E1E1E'),
+            fontName='Helvetica',
+            leading=13,  # Ajustado proporcionalmente
+            spaceBefore=6,
+            spaceAfter=8
+        )
+
+        elements = []
+        # Título principal, título e subtítulo (espaçamentos reduzidos)
+        elements.append(Paragraph("Ferramenta para Cálculo de Indicadores Ambientais da Produção de Café Torrado e Moído", title_style))
+        elements.append(Spacer(1, 8))  # Reduzido de 15 para 8
+        elements.append(Paragraph("Análise Energética - Torrefação", subtitle_style))
+        elements.append(Spacer(1, 5))  # Reduzido de 10 para 5
+        elements.append(Paragraph("Indicadores Energéticos da Etapa de Torrefação", subtitle_style))
+        elements.append(Spacer(1, 12))  # Reduzido de 20 para 12
+
+        # Buscar elementos da tabela e gráficos
+        cursor.execute("""
+            SELECT name_element, type_element, math_element, msg_element,
+                   value_element, select_element, str_element, e_col, e_row,
+                   section, user_id
+            FROM forms_energetica
+            WHERE (type_element = 'tabela_ae' OR type_element = 'grafico_ae')
+            AND user_id = ?
+            ORDER BY e_row, e_col
+        """, (user_id,))
+        elementos = cursor.fetchall()
+
+        # Tabela (se houver)
+        tabela = next((e for e in elementos if e[1] == 'tabela_ae'), None)
+        # Gráfico 1: Demandas Elétricas e Térmicas
+        graficos = [e for e in elementos if e[1] == 'grafico_ae']
+        grafico1 = next((g for g in graficos if 'elétrica' in g[3].lower() or 'térmica' in g[3].lower()), None)
+        # Gráfico 2: Demandas Energias Fóssil e Renovável
+        grafico2 = next((g for g in graficos if 'fóssil' in g[3].lower() or 'renovável' in g[3].lower()), None)
+
+        # Página 1: tabela e gráfico 1
+        if tabela:
+            select = tabela[5]
+            user_id = tabela[10]
+            valores_ref = select.split(',')
+            dados = []
+            for ref in valores_ref:
+                ref = ref.strip()
+                cursor.execute("""
+                    SELECT value_element 
+                    FROM forms_energetica 
+                    WHERE name_element = ? 
+                    AND user_id = ?
+                    ORDER BY ID_element DESC 
+                    LIMIT 1
+                """, (ref, user_id))
+                result = cursor.fetchone()
+                if result and result[0] is not None:
+                    valor = round(float(result[0]))
+                    valor_formatado = f"{valor:,.0f}".replace(',', '.')
+                else:
+                    valor_formatado = "0"
+                dados.append(valor_formatado)
+            df = pd.DataFrame({
+                'Demandas de energia (MJ/1000kg de café)': [
+                    'Total', 'Elétrica', 'Térmica', 'Renovável', 'Fóssil'
+                ],
+                'Simulação da Empresa': dados
+            }, index=None)  # Removendo o índice na criação do DataFrame
+            table_data = [list(df.columns)] + df.values.tolist()
+            table_style = TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e8f5e9')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10.5),  # 25% menor que 14
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 16),
+                ('TOPPADDING', (0, 1), (-1, -1), 12),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 12),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('BOX', (0, 0), (-1, -1), 2, colors.black),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+                ('ROUNDRECT', (0, 0), (-1, -1), 10, colors.black),  # Arredonda os cantos
+            ])
+            t = Table(table_data, colWidths=[graph_width * 0.6, graph_width * 0.4])
+            t.setStyle(table_style)
+            elements.append(Table([[t]], colWidths=[graph_width], style=[('ALIGN', (0,0), (-1,-1), 'CENTER')]))
+            elements.append(Spacer(1, 10))  # Reduzido de 20 para 10
+
+        if grafico1:
+            select = grafico1[5]
+            rotulos = grafico1[6]
+            msg = grafico1[3]
+            user_id = grafico1[10]
+            series = ['Simulação', 'Menor valor setorial', 'Média setorial', 'Maior valor setorial']
+            cores = ['#00008B', '#8eb0ae', '#53a7a9', '#007a7d']
+            categorias = rotulos.split('|')
+            dados = buscar_dados_grafico(cursor, select, user_id)
+            if dados:
+                df_plot = pd.DataFrame(dados, columns=series)
+                df_plot.index = categorias
+                
+                # Encontra o valor máximo para criar ticks brasileiros
+                max_value = df_plot.values.max() if len(dados) > 0 else 0
+                tick_vals, tick_texts = create_br_ticks(max_value)
+                
+                fig = go.Figure()
+                for i, serie in enumerate(series):
+                    fig.add_trace(go.Bar(
+                        name=serie,
+                        x=categorias,
+                        y=df_plot[serie],
+                        marker_color=cores[i]
+                    ))
+                fig.update_layout(
+                    title=None,
+                    barmode='group',
+                    showlegend=True,
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom",
+                        y=-0.4,
+                        xanchor="center",
+                        x=0.5,
+                        title=None,
+                        font=dict(size=10)
+                    ),
+                    margin=dict(b=120, l=50, r=50, t=20),
+                    height=graph_height,
+                    width=graph_width,
+                    xaxis=dict(
+                        tickangle=0,
+                        tickfont=dict(size=8),
+                        tickmode='array',
+                        ticktext=categorias,
+                        tickvals=categorias
+                    ),
+                    yaxis=dict(
+                        title=None,
+                        tickfont=dict(size=10),
+                        tickvals=tick_vals,
+                        ticktext=tick_texts
+                    )
+                )
+                img_bytes = fig.to_image(format="png", scale=3)
+                elements.append(Paragraph(msg, graphic_title_style))
+                elements.append(Image(io.BytesIO(img_bytes), width=graph_width, height=graph_height))
+                elements.append(Spacer(1, 10))  # Reduzido de 20 para 10
+
+        elements.append(PageBreak())
+
+        # Página 2: gráfico 2
+        if grafico2:
+            select = grafico2[5]
+            rotulos = grafico2[6]
+            msg = grafico2[3]
+            user_id = grafico2[10]
+            series = ['Simulação', 'Menor valor setorial', 'Média setorial', 'Maior valor setorial']
+            cores = ['#00008B', '#8eb0ae', '#53a7a9', '#007a7d']
+            categorias = rotulos.split('|')
+            dados = buscar_dados_grafico(cursor, select, user_id)
+            if dados:
+                df_plot = pd.DataFrame(dados, columns=series)
+                df_plot.index = categorias
+                
+                # Encontra o valor máximo para criar ticks brasileiros
+                max_value = df_plot.values.max() if len(dados) > 0 else 0
+                tick_vals, tick_texts = create_br_ticks(max_value)
+                
+                fig = go.Figure()
+                for i, serie in enumerate(series):
+                    fig.add_trace(go.Bar(
+                        name=serie,
+                        x=categorias,
+                        y=df_plot[serie],
+                        marker_color=cores[i]
+                    ))
+                fig.update_layout(
+                    title=None,
+                    barmode='group',
+                    showlegend=True,
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom",
+                        y=-0.4,
+                        xanchor="center",
+                        x=0.5,
+                        title=None,
+                        font=dict(size=10)
+                    ),
+                    margin=dict(b=120, l=50, r=50, t=20),
+                    height=graph_height,
+                    width=graph_width,
+                    xaxis=dict(
+                        tickangle=0,
+                        tickfont=dict(size=8),
+                        tickmode='array',
+                        ticktext=categorias,
+                        tickvals=categorias
+                    ),
+                    yaxis=dict(
+                        title=None,
+                        tickfont=dict(size=10),
+                        tickvals=tick_vals,
+                        ticktext=tick_texts
+                    )
+                )
+                img_bytes = fig.to_image(format="png", scale=3)
+                elements.append(Paragraph(msg, graphic_title_style))
+                elements.append(Image(io.BytesIO(img_bytes), width=graph_width, height=graph_height))
+                elements.append(Spacer(1, 20))
+
+        doc.build(elements)
+        return buffer
+    except Exception as e:
+        st.error(f"Erro ao gerar PDF: {str(e)}")
         return None
 
 if __name__ == "__main__":

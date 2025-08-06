@@ -100,7 +100,7 @@ def atualizar_formulas(cursor, user_id):
             SELECT name_element, type_element, math_element, section
             FROM forms_tab 
             WHERE user_id = ? 
-            AND (type_element = 'formula' OR type_element = 'formulaH')
+            AND type_element = 'formula'
             ORDER BY ID_element
         """, (user_id,))
         
