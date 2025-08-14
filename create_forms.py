@@ -1,5 +1,5 @@
 # Arquivo: create_forms.py
-# Data: 15/07/2025 
+# Data: 14/08/2025 
 # Descrição: Script para atualizar atraves de um arquivo .txt
 # Tabelas: forms_tab, forms_insumos, forms_resultados, forms_result_sea, forms_setorial, forms_setorial_sea, forms_energetica
 # Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
@@ -12,10 +12,33 @@ import pandas as pd
 from tkinter import filedialog, messagebox
 import tkinter as tk
 import sys
-
+import gc
+from contextlib import contextmanager
 
 from pathlib import Path
 from config import DB_PATH, DATA_DIR  # Adicione esta importação
+
+@contextmanager
+def get_db_connection():
+    """Context manager para conexões de banco de dados."""
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        yield conn
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
+
+def cleanup_tkinter_resources():
+    """Limpa recursos do Tkinter e força garbage collection."""
+    try:
+        import gc
+        gc.collect()
+    except:
+        pass
 
 def clean_string(value):
     """Limpa strings de aspas e apóstrofos extras."""
@@ -154,7 +177,15 @@ def select_table():
     
     root.mainloop()
     selected = selected_table.get()
-    root.destroy()
+    
+    # LIMPEZA ADEQUADA DE RECURSOS TKINTER
+    try:
+        root.destroy()
+    except:
+        pass
+    
+    # FORÇA LIMPEZA DE RECURSOS
+    cleanup_tkinter_resources()
     
     return selected if selected else "forms_tab"  # Retorna forms_tab como padrão se nada for selecionado
 
@@ -265,8 +296,12 @@ def select_import_file(table_name):
     )
     
     if not txt_file:
-        root.quit()
-        root.destroy()
+        try:
+            root.quit()
+            root.destroy()
+        except:
+            pass
+        cleanup_tkinter_resources()
         return None
     
     # Obtém apenas o nome do arquivo do caminho completo
@@ -275,8 +310,12 @@ def select_import_file(table_name):
     
     # Se o arquivo for o padrão, retorna direto sem confirmação
     if filename.lower() == expected_filename.lower():
-        root.quit()
-        root.destroy()
+        try:
+            root.quit()
+            root.destroy()
+        except:
+            pass
+        cleanup_tkinter_resources()
         return txt_file
         
     # Se for diferente, mostra mensagem de confirmação
@@ -332,8 +371,15 @@ def select_import_file(table_name):
     
     root.mainloop()
     
-    dialog.destroy()
-    root.destroy()
+    # LIMPEZA ADEQUADA DE RECURSOS TKINTER
+    try:
+        dialog.destroy()
+        root.destroy()
+    except:
+        pass
+    
+    # FORÇA LIMPEZA DE RECURSOS
+    cleanup_tkinter_resources()
     
     if result[0]:
         return txt_file
@@ -367,7 +413,7 @@ def create_database():
     check_database()  # Verifica pasta data e banco
     
     table_name = "forms_resultados"
-    conn = None
+    
     try:
         # Garante que o diretório de dados existe
         DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -378,39 +424,14 @@ def create_database():
             root.withdraw()
             if messagebox.askyesno("Confirmação", 
                 f"A tabela {table_name} já existe. Deseja apagá-la e criar uma nova?"):
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
-                cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
-                conn.commit()
-                print(f"Tabela {table_name} removida para recriação.")
+                with get_db_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+                    conn.commit()
+                    print(f"Tabela {table_name} removida para recriação.")
             else:
                 print("Operação cancelada pelo usuário.")
                 return
-        else:
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-
-        if not conn:
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-
-        # Cria tabela
-        cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS {table_name} (
-                ID_element INTEGER PRIMARY KEY AUTOINCREMENT,
-                name_element TEXT NOT NULL,
-                type_element TEXT NOT NULL,
-                math_element TEXT,
-                msg_element TEXT,
-                value_element REAL,
-                select_element TEXT,
-                str_element TEXT,
-                e_col INTEGER,
-                e_row INTEGER,
-                user_id INTEGER,
-                section TEXT
-            );
-        """)
 
         # Usa a nova função de seleção de arquivo
         txt_file = select_import_file(table_name)
@@ -428,53 +449,75 @@ def create_database():
             f"Foram encontradas {len(df)} linhas para importar.\n"
             "Deseja iniciar a importação?"):
             
-            # Processa cada linha
-            for _, row in df.iterrows():
-                row_dict = row.to_dict()
+            # Usa context manager para conexão
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
                 
-                # Valida dados do selectbox
-                is_valid, row_dict = validate_selectbox_data(row_dict)
-                if not is_valid:
-                    continue
+                # Cria tabela
+                cursor.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {table_name} (
+                        ID_element INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name_element TEXT NOT NULL,
+                        type_element TEXT NOT NULL,
+                        math_element TEXT,
+                        msg_element TEXT,
+                        value_element REAL,
+                        select_element TEXT,
+                        str_element TEXT,
+                        e_col INTEGER,
+                        e_row INTEGER,
+                        user_id INTEGER,
+                        section TEXT
+                    );
+                """)
                 
-                try:
-                    cursor.execute(f"""
-                        INSERT INTO {table_name} (
-                            name_element, type_element, math_element, 
-                            msg_element, value_element, select_element,
-                            str_element, e_col, e_row, user_id, section
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        str(row_dict['name_element']),
-                        str(row_dict['type_element']),
-                        str(row_dict['math_element']),
-                        str(row_dict['msg_element']),
-                        row_dict['value_element'],
-                        str(row_dict['select_element']),
-                        str(row_dict['str_element']),
-                        int(float(format_float_value(row_dict['e_col']))),
-                        int(float(format_float_value(row_dict['e_row']))),
-                        int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
-                        str(row_dict['section']) if pd.notna(row_dict.get('section')) else None
-                    ))
-                    # print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
-                except Exception as e:
-                    print(f"Erro ao inserir linha na tabela {table_name}: {str(e)}")
-                    continue
+                # Processa cada linha
+                for _, row in df.iterrows():
+                    row_dict = row.to_dict()
+                    
+                    # Valida dados do selectbox
+                    is_valid, row_dict = validate_selectbox_data(row_dict)
+                    if not is_valid:
+                        continue
+                    
+                    try:
+                        cursor.execute(f"""
+                            INSERT INTO {table_name} (
+                                name_element, type_element, math_element, 
+                                msg_element, value_element, select_element,
+                                str_element, e_col, e_row, user_id, section
+                            )
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            str(row_dict['name_element']),
+                            str(row_dict['type_element']),
+                            str(row_dict['math_element']),
+                            str(row_dict['msg_element']),
+                            row_dict['value_element'],
+                            str(row_dict['select_element']),
+                            str(row_dict['str_element']),
+                            int(float(format_float_value(row_dict['e_col']))),
+                            int(float(format_float_value(row_dict['e_row']))),
+                            int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
+                            str(row_dict['section']) if pd.notna(row_dict.get('section')) else None
+                        ))
+                        # print(f"Inserido value_element: {format_br_number(row_dict['value_element'])}")
+                    except Exception as e:
+                        print(f"Erro ao inserir linha na tabela {table_name}: {str(e)}")
+                        continue
 
-            conn.commit()
-            messagebox.showinfo("Sucesso", 
-                f"Dados importados com sucesso para a tabela '{table_name}'\n"
-                f"Total de registros processados: {len(df)}")
+                conn.commit()
+                messagebox.showinfo("Sucesso", 
+                    f"Dados importados com sucesso para a tabela '{table_name}'\n"
+                    f"Total de registros processados: {len(df)}")
         else:
             print("Importação cancelada pelo usuário.")
 
     except Exception as e:
         messagebox.showerror("Erro", f"Ocorreu um erro durante a importação:\n{str(e)}")
     finally:
-        if conn:
-            conn.close()
+        # FORÇA LIMPEZA DE RECURSOS
+        cleanup_tkinter_resources()
 
 def create_database_insumos():
     """Cria o banco de dados e a tabela forms_insumos."""

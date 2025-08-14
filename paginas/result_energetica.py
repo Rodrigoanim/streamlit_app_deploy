@@ -1,8 +1,8 @@
 # Arquivo: result_energetica.py
-# Data: 31/07/2025 15:00
+# Data: 12/08/2025 15:00
 # Pagina de Análise Energética - Torrefação
 # Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
-# ajustes layout Anna - versão 3.3b
+# ajustes layout Anna e ABIC
 
 import streamlit as st
 import sqlite3
@@ -323,43 +323,53 @@ def show_results():
     except Exception as e:
         st.error(f"Erro ao carregar resultados: {str(e)}")
 
-def create_br_ticks(max_value):
+def create_br_ticks(max_value, target_ticks: int = 6):
     """
-    Cria valores de tick formatados no padrão brasileiro para o eixo Y
+    Gera ticks "bonitos" (nice numbers) e define o maior tick como o primeiro múltiplo
+    do passo acima do valor máximo. Assim, o último grid sempre cobre o maior valor.
+    Retorna (tick_vals, tick_texts).
     """
+    import math
     try:
-        if max_value <= 0:
+        if max_value is None or max_value <= 0:
             return [0], ["0"]
-        
-        # Determina o intervalo apropriado baseado no valor máximo
-        if max_value <= 100:
-            step = 20
-        elif max_value <= 500:
-            step = 100
-        elif max_value <= 1000:
-            step = 200
-        elif max_value <= 5000:
-            step = 1000
-        elif max_value <= 10000:
-            step = 2000
-        else:
-            step = int(max_value / 5)
-            # Arredonda o step para um número "bonito"
-            step = round(step / 1000) * 1000 if step > 1000 else step
-        
-        # Cria lista de valores
-        tick_vals = []
-        current = 0
-        while current <= max_value * 1.1:  # 10% a mais que o máximo
-            tick_vals.append(current)
-            current += step
-        
-        # Formata os valores usando a função brasileira
-        tick_texts = [format_br_number(val) for val in tick_vals]
-        
+
+        def nice_number(delta: float, round_value: bool) -> float:
+            exponent = math.floor(math.log10(delta)) if delta > 0 else 0
+            frac = delta / (10 ** exponent) if delta > 0 else 1
+            if round_value:
+                if frac < 1.5:
+                    nice_frac = 1
+                elif frac < 3:
+                    nice_frac = 2
+                elif frac < 7:
+                    nice_frac = 5
+                else:
+                    nice_frac = 10
+            else:
+                if frac <= 1:
+                    nice_frac = 1
+                elif frac <= 2:
+                    nice_frac = 2
+                elif frac <= 5:
+                    nice_frac = 5
+                else:
+                    nice_frac = 10
+            return nice_frac * (10 ** exponent)
+
+        # Passo "bonito" com base no número-alvo de ticks
+        step = nice_number(max_value / max(1, (target_ticks - 1)), round_value=True)
+        # Máximo do eixo é o primeiro múltiplo do passo acima do máximo real
+        axis_max = math.ceil(max_value / step) * step
+
+        # Gera a lista de ticks de 0 até axis_max (inclusive)
+        num_steps = int(round(axis_max / step))
+        tick_vals = [i * step for i in range(0, num_steps + 1)]
+
+        tick_texts = [format_br_number(v) for v in tick_vals]
         return tick_vals, tick_texts
     except Exception as e:
-        print(f"Erro ao criar ticks brasileiros: {str(e)}")
+        print(f"Erro ao criar ticks: {e}")
         return [0], ["0"]
 
 def grafico_ae(cursor, element):
@@ -399,7 +409,9 @@ def grafico_ae(cursor, element):
                 name=serie,
                 x=categorias,
                 y=df_plot[serie],
-                marker_color=cores[i]
+                marker_color=cores[i],
+                hoverinfo='skip',
+                hovertemplate=None
             ))
         # Layout
         fig.update_layout(
@@ -429,12 +441,31 @@ def grafico_ae(cursor, element):
             height=400,
             xaxis=dict(
                 tickangle=0,
-                tickfont=dict(size=14)  # tamanho do fonte do eixo X
+                tickfont=dict(size=14),  # tamanho do fonte do eixo X
+                showgrid=False,
+                showline=True,
+                linecolor='#B0B0B0',
+                linewidth=1
             ),
             yaxis=dict(
                 tickvals=tick_vals,
-                ticktext=tick_texts
-            )
+                ticktext=tick_texts,
+                range=[0, tick_vals[-1] if tick_vals else 0],
+                showgrid=True,
+                gridcolor='#E0E0E0',
+                gridwidth=1,
+                showline=True,
+                linecolor='#B0B0B0',
+                linewidth=1
+            ),
+            shapes=[
+                dict(
+                    type='line',
+                    xref='paper', x0=0, x1=1,
+                    yref='y', y0=(tick_vals[-1] if tick_vals else 0), y1=(tick_vals[-1] if tick_vals else 0),
+                    line=dict(color='#E0E0E0', width=1)
+                )
+            ]
         )
         # Exibe
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
@@ -743,7 +774,9 @@ def generate_pdf_content_energetica(cursor, user_id: int):
                         name=serie,
                         x=categorias,
                         y=df_plot[serie],
-                        marker_color=cores[i]
+                        marker_color=cores[i],
+                        hoverinfo='skip',
+                        hovertemplate=None
                     ))
                 fig.update_layout(
                     title=None,
@@ -766,17 +799,45 @@ def generate_pdf_content_energetica(cursor, user_id: int):
                         tickfont=dict(size=8),
                         tickmode='array',
                         ticktext=categorias,
-                        tickvals=categorias
+                        tickvals=categorias,
+                        showgrid=False,
+                        showline=True,
+                        linecolor='#B0B0B0',
+                        linewidth=1
                     ),
                     yaxis=dict(
                         title=None,
-                        tickfont=dict(size=10),
+                        tickfont=dict(size=8),  # Reduzido 20% (10 → 8)
                         tickvals=tick_vals,
-                        ticktext=tick_texts
-                    )
+                        ticktext=tick_texts,
+                        range=[0, tick_vals[-1] if tick_vals else 0],
+                        showgrid=True,
+                        gridcolor='#E0E0E0',
+                        gridwidth=1,
+                        showline=True,
+                        linecolor='#B0B0B0',
+                        linewidth=1
+                    ),
+                    shapes=[
+                        dict(
+                            type='line',
+                            xref='paper', x0=0, x1=1,
+                            yref='y', y0=(tick_vals[-1] if tick_vals else 0), y1=(tick_vals[-1] if tick_vals else 0),
+                            line=dict(color='#E0E0E0', width=1)
+                        )
+                    ]
                 )
                 img_bytes = fig.to_image(format="png", scale=3)
-                elements.append(Paragraph(msg, graphic_title_style))
+                # Limpar tags HTML do título para compatibilidade com ReportLab
+                import re
+                if msg:
+                    msg_clean = re.sub(r'<br\s*/?>', ' ', msg, flags=re.IGNORECASE)
+                    msg_clean = re.sub(r'<[^>]+>', '', msg_clean)
+                    msg_clean = re.sub(r'\s+', ' ', msg_clean)
+                    msg_clean = msg_clean.strip()
+                else:
+                    msg_clean = ""
+                elements.append(Paragraph(msg_clean, graphic_title_style))
                 elements.append(Image(io.BytesIO(img_bytes), width=graph_width, height=graph_height))
                 elements.append(Spacer(1, 10))  # Reduzido de 20 para 10
 
@@ -806,7 +867,9 @@ def generate_pdf_content_energetica(cursor, user_id: int):
                         name=serie,
                         x=categorias,
                         y=df_plot[serie],
-                        marker_color=cores[i]
+                        marker_color=cores[i],
+                        hoverinfo='skip',
+                        hovertemplate=None
                     ))
                 fig.update_layout(
                     title=None,
@@ -833,13 +896,34 @@ def generate_pdf_content_energetica(cursor, user_id: int):
                     ),
                     yaxis=dict(
                         title=None,
-                        tickfont=dict(size=10),
+                        tickfont=dict(size=8),  # Reduzido 20% (10 → 8)
                         tickvals=tick_vals,
-                        ticktext=tick_texts
-                    )
+                        ticktext=tick_texts,
+                        range=[0, tick_vals[-1] if tick_vals else 0],
+                        showgrid=True,
+                        gridcolor='#E0E0E0',
+                        gridwidth=1
+                    ),
+                    shapes=[
+                        dict(
+                            type='line',
+                            xref='paper', x0=0, x1=1,
+                            yref='y', y0=(tick_vals[-1] if tick_vals else 0), y1=(tick_vals[-1] if tick_vals else 0),
+                            line=dict(color='#E0E0E0', width=1)
+                        )
+                    ]
                 )
                 img_bytes = fig.to_image(format="png", scale=3)
-                elements.append(Paragraph(msg, graphic_title_style))
+                # Limpar tags HTML do título para compatibilidade com ReportLab
+                import re
+                if msg:
+                    msg_clean = re.sub(r'<br\s*/?>', ' ', msg, flags=re.IGNORECASE)
+                    msg_clean = re.sub(r'<[^>]+>', '', msg_clean)
+                    msg_clean = re.sub(r'\s+', ' ', msg_clean)
+                    msg_clean = msg_clean.strip()
+                else:
+                    msg_clean = ""
+                elements.append(Paragraph(msg_clean, graphic_title_style))
                 elements.append(Image(io.BytesIO(img_bytes), width=graph_width, height=graph_height))
                 elements.append(Spacer(1, 20))
 

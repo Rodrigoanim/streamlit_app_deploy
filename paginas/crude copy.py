@@ -1,5 +1,5 @@
 # Arquivo: crude.py
-# Data: 14/08/2025  10:00
+# Data: 15/07/2025  16:00
 # IDE Cursor - claude 3.5 sonnet
 # Adaptação para o uso de Discos SSD e a pasta Data para o banco de dados
 # Download do arquivo calcpc.db

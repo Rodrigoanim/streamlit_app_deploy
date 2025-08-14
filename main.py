@@ -1,9 +1,8 @@
-# Data: 30/07/2025 - Hora: 18:00
-# IDE Cursor - claude-4 sonnet
+# Data: 14/08/2025 - Hora: 10:00
+# IDE Cursor - auto 
 #  .\env\Scripts\Activate
 # streamlit run main.py
-# função para trocar de senha - OK
-# ajustes Textos Anna - versão 
+# fatoração: ui/theme.py
 
 import streamlit as st
 import sqlite3
@@ -15,20 +14,21 @@ from config import DB_PATH, DATA_DIR  # Atualize a importação
 import os
 from paginas.monitor import registrar_acesso  # Adicione esta importação no topo do arquivo
 import streamlit.components.v1 as components
+from ui.theme import COLORS, FONTS, global_css, sidebar_css, login_css, terms_css
 
 # Adicione esta linha logo no início do arquivo, após os imports
 # os.environ['RENDER'] = 'true'
 
-# Configuração da página - deve ser a primeira chamada do Streamlit
+# Configuração da página - Aba Navegador
 st.set_page_config(
-    page_title="Ferramenta para Cálculo de Indicadores Ambientais da Produção de Café Torrado e Moído ",  # Título Aba Navegador
+    page_title="FCIAPC - versão 3.3e", 
     page_icon="☕",
     layout="wide",
     menu_items={
         'About': """
         ### Ferramenta para Cálculo de Indicadores Ambientais da Produção de Café Torrado e Moído 
         
-        Versão: 3.3c - 05/08/2025
+        Versão: 3.3e - 12/08/2025
         
         Esta Ferramenta foi desenvolvida para cálcular os indicadores ambientais da Produção de Café Torrado e Moído.
         
@@ -49,80 +49,20 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 logo_path = os.path.join(current_dir, "Logo_ABIC_8eb0ae.jpg")
 
 # --- CSS Global ---
-# Adiciona CSS para ocultar o botão de fullscreen das imagens globalmente
-st.markdown("""
-    <style>
-        /* Oculta o botão baseado no aria-label identificado na inspeção */
-        button[aria-label="Fullscreen"] {
-            display: none !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
+st.markdown(global_css(), unsafe_allow_html=True)
 # --- Fim CSS Global ---
 
 # Adicionar o logotipo no sidebar usando st.sidebar.image
-st.sidebar.markdown("""
-    <style>
-        /* Estilo geral do sidebar */
-        [data-testid="stSidebar"] {
-            padding-top: 0rem;
-            background-color: #8eb0ae; # cor anterior #007a7d
-        }
-        
-        /* Estilo para títulos no sidebar */
-        [data-testid="stSidebar"] h1 {
-            color: #FFFFFF; # cor da fonte branca
-            font-size: 24px;
-            # font-weight: bold;
-            padding: 10px;
-        }
-        
-        /* Estilo para texto normal no sidebar */
-        [data-testid="stSidebar"] p {
-            color: #FFFFFF; 
-            font-size: 16px;
-            padding: 5px;
-        }
-        
-        /* Estilo para links no sidebar */
-        [data-testid="stSidebar"] a {
-            color: #53a7a9;
-            text-decoration: none;
-        }
-        
-        /* Estilo para botões no sidebar */
-        [data-testid="stSidebar"] button {
-            background-color: #53a7a9; # cor anterior #007a7d
-            color: white;
-            border-radius: 5px;
-            padding: 8px 15px;
-        }
-        
-        /* Estilo para o menu de navegação */
-        [data-testid="stSidebarNav"] {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #ffffff;
-            border-radius: 5px;
-            padding: 10px;
-            margin: 5px;
-        }
-        
-        /* Estilo para o container da imagem */
-        .css-1v0mbdj.e115fcil1 {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 1rem;
-        }
-        
-        /* Remove o ícone de fullscreen usando o seletor aria-label (regra específica do sidebar mantida por segurança, embora a global deva cobrir) */
-        [data-testid="stSidebar"] button[aria-label="Fullscreen"] {
-            display: none !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
+st.sidebar.markdown(
+    sidebar_css(
+        bg=COLORS["sidebar_bg"],
+        link=COLORS["sidebar_link"],
+        text=COLORS["text_light"],
+        button_bg=COLORS["secondary"],
+        title_size=FONTS["sidebar_title"],
+    ),
+    unsafe_allow_html=True,
+)
 
 # Verifica se o arquivo existe antes de tentar carregá-lo
 if os.path.exists(logo_path):
@@ -142,29 +82,7 @@ def authenticate_user():
     """Autentica o usuário e verifica seu perfil no banco de dados."""
     # Adicionar CSS para a página de login
     if not st.session_state.get("logged_in", False):
-        st.markdown("""
-            <style>
-                /* Estilo para a página de login */
-                [data-testid="stAppViewContainer"] {
-                    background-color: #007a7d;
-                }
-                
-                /* Remove a faixa branca superior */
-                [data-testid="stHeader"] {
-                    background-color: #007a7d;
-                }
-                
-                /* Ajuste da cor do texto para melhor contraste */
-                [data-testid="stAppViewContainer"] p {
-                    color: white;
-                }
-                
-                /* Mantém o fundo do sidebar na cor original */
-                [data-testid="stSidebar"] {
-                    background-color: #8eb0ae !important;
-                }
-            </style>
-        """, unsafe_allow_html=True)
+        st.markdown(login_css(), unsafe_allow_html=True)
     
     # Verifica se o banco existe
     if not DB_PATH.exists():
@@ -195,8 +113,8 @@ def authenticate_user():
             <p style='text-align: center; font-size: 35px;'></p> 
         """, unsafe_allow_html=True)
         
-        # Login na sidebar - versão 3.3c
-        st.sidebar.markdown("<h1 style='color: white; font-size: 24px;'>FCIAPC - ver. 3.3c</h1>", unsafe_allow_html=True)
+        # Login na sidebar - versão 3.3e
+        st.sidebar.markdown("<h1 style='color: white; font-size: 24px;'>FCIAPC - ver. 3.3e</h1>", unsafe_allow_html=True)
 
         # Criar labels personalizados com cor branca
         st.sidebar.markdown("<p style='color: white; margin-bottom: 5px;'>E-mail</p>", unsafe_allow_html=True)
@@ -209,26 +127,7 @@ def authenticate_user():
                                         if "password" in st.session_state else None)
 
         # Adiciona o checkbox de aceite dos termos
-        st.sidebar.markdown("""
-            <style>
-                /* Estilo para o link dos termos */
-                a {
-                    color: white !important;
-                    text-decoration: underline !important;
-                }
-                /* Estilo para o checkbox e seu texto */
-                .stCheckbox {
-                    color: white !important;
-                }
-                .stCheckbox label {
-                    color: white !important;
-                }
-                .stCheckbox a {
-                    color: white !important;
-                    text-decoration: underline !important;
-                }
-            </style>
-        """, unsafe_allow_html=True)
+        st.sidebar.markdown(terms_css(), unsafe_allow_html=True)
 
         # link e path do arquivo termos_de_uso.pdf
         aceite_termos = st.sidebar.checkbox(
@@ -305,7 +204,7 @@ def show_welcome():
                 <div style="color: #ffffff; font-size: 16px; line-height: 1.6;">
                     <p>Bem vindo(a) à ferramenta desenvolvida para os associados da ABIC para auxiliar ao usuário a prever os principais indicadores ambientais da produção de café torrado e moído.</p>
                     <p>Através desta ferramenta é possível prever como alterações na seleção de fornecedores de café e insumos na industrialização do mesmo afetam os indicadores relativos à Pegada de Carbono, às Demandas de Energia e Água e a Geração de Resíduos sólidos.</p>
-                    <p>Os dados industriais refletem a média dos valores coletados durante a realização do projeto "Pegada de Carbono de Café Torrado e Moído no Brasil" no ano de 2023.</p>
+                    <p>Os dados industriais refletem a média dos valores coletados durante a realização do projeto "Pegada de Carbono de Café Torrado e Moído no Brasil" realizado em 2024 para o ano base de 2023.</p>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -317,8 +216,7 @@ def show_welcome():
                 <div style="color: #ffffff; font-size: 16px; line-height: 1.6;">
                     <p>Esta ferramenta foi criada para cálculo dos indicadores ambientais considerando as etapas agrícola, de transporte até a industrialização, de torrefação e/ou moagem e de acondicionamento em embalagem primária.</p>
                     <p>São calculados os indicadores ambientais de Pegada de Carbono, Demandas de Energia e Água e de Geração de Resíduos sólidos (*).</p>
-                    <p>A unidade funcional do projeto são 1000kg de café torrado e moído acondicionados em embalagem primária.</p>
-                    <p>(*) Resíduos com atual baixo potencial de aproveitamento dentro das fronteiras do estudo.</p>
+                    <p>A unidade funcional do projeto são 1000kg de café torrado e moído acondicionados em embalagem primária.<br>(*) Resíduos com atual baixo potencial de aproveitamento dentro das fronteiras do estudo.</p>
                 </div>
             </div>
         """, unsafe_allow_html=True)

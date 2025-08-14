@@ -1,5 +1,5 @@
 # resultados.py
-# Data: 14/08/2025 - 11h00
+# Data: 12/08/2025 - 11h00
 # Pagina de resultados - Dashboard
 # rotina das Simulações, tabelas: forms_resultados, forms_result-sea, forms_setorial, forms_setorial_sea
 # novo layout para as tabelas e Gráficos - redução de conteudo e ajustes de layout
@@ -949,7 +949,7 @@ def generate_pdf_content(cursor, user_id: int, tabela_escolhida: str):
                 if tabela:
                     dados_tabela = gerar_dados_tabela(pdf_cursor, tabela, height_pct=TABLE_HEIGHT_PCT, width_pct=TABLE_WIDTH_PCT)
                     if dados_tabela:
-                        t = Table(dados_tabela['data'], colWidths=[table_width * 0.75, table_width * 0.25])
+                        t = Table(dados_tabela['data'], colWidths=[table_width * 0.6, table_width * 0.4])
                         t.setStyle(table_style)
                         elements.append(Table([[t]], colWidths=[table_width], style=[('ALIGN', (0,0), (-1,-1), 'CENTER')]))
                         for _ in range(5):
