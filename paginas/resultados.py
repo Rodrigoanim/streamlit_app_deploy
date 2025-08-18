@@ -31,17 +31,17 @@ def get_subtitle_configs():
     return {
         # Mapeamento de tabelas para subtítulos completos (usado no main.py)
         "table_to_full_subtitle": {
-            "forms_resultados": "Simulações: Empresa com Etapa Agrícola <br>(Cradle to Gate)",
-            "forms_result_sea": "Simulações: Empresa sem Etapa Agrícola <br>(Gate to Gate)",
-            "forms_setorial": "Simulações: Setorial com Etapa Agrícola <br>(Cradle to Gate)",
-            "forms_setorial_sea": "Simulações: Setorial sem Etapa Agrícola <br>(Gate to Gate)"
+            "forms_resultados": "Simulações: Empresa com Etapa Agrícola <br><span style='font-style: italic; font-size: 0.8em;'>(Cradle-to-Gate)</span>",
+            "forms_result_sea": "Simulações: Empresa sem Etapa Agrícola <br><span style='font-style: italic; font-size: 0.8em;'>(Gate-to-Gate)</span>",
+            "forms_setorial": "Simulações: Setorial com Etapa Agrícola <br><span style='font-style: italic; font-size: 0.8em;'>(Cradle-to-Gate)</span>",
+            "forms_setorial_sea": "Simulações: Setorial sem Etapa Agrícola <br><span style='font-style: italic; font-size: 0.8em;'>(Gate-to-Gate)</span>"
         },
         # Mapeamento de seções para títulos completos (usado no main.py)
         "section_to_title": {
-            "Empresa com Etapa Agrícola": "Simulações: Empresa com Etapa Agrícola <br>(Cradle to Gate)",
-            "Empresa sem Etapa Agrícola": "Simulações: Empresa sem Etapa Agrícola <br>(Gate to Gate)",
-            "Setorial com Etapa Agrícola": "Simulações: Setorial com Etapa Agrícola <br>(Cradle to Gate)",
-            "Setorial sem Etapa Agrícola": "Simulações: Setorial sem Etapa Agrícola <br>(Gate to Gate)"
+            "Empresa com Etapa Agrícola": "Simulações: Empresa com Etapa Agrícola <br><span style='font-style: italic; font-size: 0.8em;'>(Cradle-to-Gate)</span>",
+            "Empresa sem Etapa Agrícola": "Simulações: Empresa sem Etapa Agrícola <br><span style='font-style: italic; font-size: 0.8em;'>(Gate-to-Gate)</span>",
+            "Setorial com Etapa Agrícola": "Simulações: Setorial com Etapa Agrícola <br><span style='font-style: italic; font-size: 0.8em;'>(Cradle-to-Gate)</span>",
+            "Setorial sem Etapa Agrícola": "Simulações: Setorial sem Etapa Agrícola <br><span style='font-style: italic; font-size: 0.8em;'>(Gate-to-Gate)</span>"
         },
         # Mapeamento para nomes de arquivos PDF (usado em resultados.py)
         "table_to_pdf_filename": {
@@ -796,6 +796,32 @@ def generate_pdf_content(cursor, user_id: int, tabela_escolhida: str):
         else:
             return ""
     
+    def process_subtitle_for_pdf(subtitle_text):
+        """Função auxiliar para processar subtítulos com formatação especial para PDF"""
+        if subtitle_text:
+            import re
+            # Primeiro, limpa todas as tags HTML existentes
+            subtitle_clean = re.sub(r'<[^>]+>', '', subtitle_text)
+            # Substitui <br> por espaço
+            subtitle_clean = re.sub(r'<br\s*/?>', ' ', subtitle_clean, flags=re.IGNORECASE)
+            # Normaliza espaços
+            subtitle_clean = re.sub(r'\s+', ' ', subtitle_clean)
+            subtitle_clean = subtitle_clean.strip()
+            
+            # Extrai o texto principal e o subtítulo entre parênteses
+            match = re.search(r'(.+?)\s*\(([^)]+)\)', subtitle_clean)
+            if match:
+                main_text = match.group(1).strip()
+                subtitle_part = match.group(2).strip()
+                
+                # Retorna o texto principal + subtítulo formatado para ReportLab com parênteses
+                return f"{main_text} <i><font size='-2'>({subtitle_part})</font></i>"
+            else:
+                # Se não encontrar o padrão, retorna o texto limpo
+                return subtitle_clean
+        else:
+            return ""
+    
     try:
         # Configurações de dimensões (em percentual)
         TABLE_HEIGHT_PCT = 25
@@ -902,10 +928,7 @@ def generate_pdf_content(cursor, user_id: int, tabela_escolhida: str):
                 titulo_principal_clean = "Simulador"
                 
             if subtitulo_principal:
-                subtitulo_principal_clean = re.sub(r'<br\s*/?>', ' ', subtitulo_principal, flags=re.IGNORECASE)
-                subtitulo_principal_clean = re.sub(r'<[^>]+>', '', subtitulo_principal_clean)
-                subtitulo_principal_clean = re.sub(r'\s+', ' ', subtitulo_principal_clean)
-                subtitulo_principal_clean = subtitulo_principal_clean.strip()
+                subtitulo_principal_clean = process_subtitle_for_pdf(subtitulo_principal)
             else:
                 subtitulo_principal_clean = "Simulações"
             
@@ -975,16 +998,23 @@ def generate_pdf_content(cursor, user_id: int, tabela_escolhida: str):
                 if residuos_key:
                     titulos_graficos_p2.append(residuos_key)
                 for titulo in titulos_graficos_p2:
-                    # Buscar gráfico usando título limpo
-                    grafico = next((g for g in graficos if titulo in clean_title_for_pdf(g[3])), None)
+                    # Buscar gráfico usando palavras-chave mais flexíveis
+                    if "água" in titulo.lower():
+                        grafico = next((g for g in graficos if "água" in clean_title_for_pdf(g[3]).lower()), None)
+                    elif "carbono" in titulo.lower():
+                        grafico = next((g for g in graficos if "carbono" in clean_title_for_pdf(g[3]).lower()), None)
+                    else:
+                        grafico = next((g for g in graficos if titulo in clean_title_for_pdf(g[3])), None)
+                    
                     if grafico:
                         dados_grafico = gerar_dados_grafico(pdf_cursor, grafico, tabela_escolhida, height_pct=120, width_pct=100)
-                        elements.append(Table(
-                            [[Paragraph(dados_grafico['title'], graphic_title_style)], [dados_grafico['image']]],
-                            colWidths=[graph_width],
-                            style=[('ALIGN', (0,0), (-1,-1), 'CENTER')]
-                        ))
-                        elements.append(Spacer(1, 10))
+                        if dados_grafico:  # Verificar se os dados foram gerados com sucesso
+                            elements.append(Table(
+                                [[Paragraph(dados_grafico['title'], graphic_title_style)], [dados_grafico['image']]],
+                                colWidths=[graph_width],
+                                style=[('ALIGN', (0,0), (-1,-1), 'CENTER')]
+                            ))
+                            elements.append(Spacer(1, 10))
             else:
                 # Layout setorial: só gráficos, 2 por página
                 # Página 1: Demanda de Energia e Demanda de Água

@@ -1,5 +1,5 @@
 # Arquivo: form_model.py
-# 30/07/2025 - 18:00 
+# 16/08/2025 - 18:00 
 # Fatoração: titulo(), formula()
 
 import sqlite3

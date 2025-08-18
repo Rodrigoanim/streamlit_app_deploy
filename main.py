@@ -1,4 +1,4 @@
-# Data: 14/08/2025 - Hora: 10:00
+# 16/08/2025 - 18:00 
 # IDE Cursor - auto 
 #  .\env\Scripts\Activate
 # streamlit run main.py
@@ -21,14 +21,14 @@ from ui.theme import COLORS, FONTS, global_css, sidebar_css, login_css, terms_cs
 
 # Configuração da página - Aba Navegador
 st.set_page_config(
-    page_title="FCIAPC - versão 3.3e", 
+    page_title="FCIAPC - versão 3.3f", 
     page_icon="☕",
     layout="wide",
     menu_items={
         'About': """
         ### Ferramenta para Cálculo de Indicadores Ambientais da Produção de Café Torrado e Moído 
         
-        Versão: 3.3e - 12/08/2025
+        Versão: 3.3f - 16/08/2025
         
         Esta Ferramenta foi desenvolvida para cálcular os indicadores ambientais da Produção de Café Torrado e Moído.
         
@@ -113,8 +113,8 @@ def authenticate_user():
             <p style='text-align: center; font-size: 35px;'></p> 
         """, unsafe_allow_html=True)
         
-        # Login na sidebar - versão 3.3e
-        st.sidebar.markdown("<h1 style='color: white; font-size: 24px;'>FCIAPC - ver. 3.3e</h1>", unsafe_allow_html=True)
+        # Login na sidebar - versão 3.3f
+        st.sidebar.markdown("<h1 style='color: white; font-size: 24px;'>FCIAPC - ver. 3.3f</h1>", unsafe_allow_html=True)
 
         # Criar labels personalizados com cor branca
         st.sidebar.markdown("<p style='color: white; margin-bottom: 5px;'>E-mail</p>", unsafe_allow_html=True)

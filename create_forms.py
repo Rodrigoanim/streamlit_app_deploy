@@ -43,7 +43,15 @@ def cleanup_tkinter_resources():
 def clean_string(value):
     """Limpa strings de aspas e apóstrofos extras."""
     if isinstance(value, str):
-        return value.replace("'", "").replace('"', "").strip()
+        # Remove todas as aspas duplas consecutivas do início e fim
+        cleaned = value
+        while cleaned.startswith('"'):
+            cleaned = cleaned.lstrip('"')
+        while cleaned.endswith('"'):
+            cleaned = cleaned.rstrip('"')
+        # Remove aspas simples também
+        cleaned = cleaned.replace("'", "").strip()
+        return cleaned
     return value
 
 def clean_csv_data(txt_file):
@@ -54,7 +62,7 @@ def clean_csv_data(txt_file):
             index_col=0,
             encoding='cp1252',
             sep='\t',
-            quoting=3,
+            quoting=1,
             na_filter=False,
             decimal=','
         )
@@ -495,7 +503,7 @@ def create_database():
                             str(row_dict['msg_element']),
                             row_dict['value_element'],
                             str(row_dict['select_element']),
-                            str(row_dict['str_element']),
+                            clean_string(str(row_dict['str_element'])),
                             int(float(format_float_value(row_dict['e_col']))),
                             int(float(format_float_value(row_dict['e_row']))),
                             int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
@@ -609,7 +617,7 @@ def create_database_insumos():
                         str(row_dict['msg_element']),
                         row_dict['value_element'],
                         str(row_dict['select_element']),
-                        str(row_dict['str_element']),
+                        clean_string(str(row_dict['str_element'])),
                         int(float(format_float_value(row_dict['e_col']))),
                         int(float(format_float_value(row_dict['e_row']))),
                         int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
@@ -689,7 +697,7 @@ def create_database_forms():
                 txt_file,
                 encoding='cp1252',
                 sep='\t',
-                quoting=3,
+                quoting=1,
                 na_filter=False,
                 decimal=','
             )
@@ -740,7 +748,7 @@ def create_database_forms():
                         str(row_dict['msg_element']),
                         row_dict['value_element'],
                         str(row_dict['select_element']),
-                        str(row_dict['str_element']),
+                        clean_string(str(row_dict['str_element'])),
                         int(float(format_float_value(row_dict['e_col']))),
                         int(float(format_float_value(row_dict['e_row']))),
                         int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
@@ -816,7 +824,7 @@ def create_database_usuarios():
                 txt_file,
                 encoding='cp1252',
                 sep='\t',
-                quoting=3,
+                quoting=1,
                 na_filter=False
             )
         except Exception as e:
@@ -924,7 +932,7 @@ def create_database_result_sea():
                         str(row_dict['msg_element']),
                         row_dict['value_element'],
                         str(row_dict['select_element']),
-                        str(row_dict['str_element']),
+                        clean_string(str(row_dict['str_element'])),
                         int(float(format_float_value(row_dict['e_col']))),
                         int(float(format_float_value(row_dict['e_row']))),
                         int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
@@ -1035,7 +1043,7 @@ def create_database_setorial():
                         str(row_dict['msg_element']),
                         row_dict['value_element'],
                         str(row_dict['select_element']),
-                        str(row_dict['str_element']),
+                        clean_string(str(row_dict['str_element'])),
                         int(float(format_float_value(row_dict['e_col']))),
                         int(float(format_float_value(row_dict['e_row']))),
                         int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
@@ -1145,7 +1153,7 @@ def create_database_setorial_sea():
                         str(row_dict['msg_element']),
                         row_dict['value_element'],
                         str(row_dict['select_element']),
-                        str(row_dict['str_element']),
+                        clean_string(str(row_dict['str_element'])),
                         int(float(format_float_value(row_dict['e_col']))),
                         int(float(format_float_value(row_dict['e_row']))),
                         int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
@@ -1255,7 +1263,7 @@ def create_database_energetica():
                         str(row_dict['msg_element']),
                         row_dict['value_element'],
                         str(row_dict['select_element']),
-                        str(row_dict['str_element']),
+                        clean_string(str(row_dict['str_element'])),
                         int(float(format_float_value(row_dict['e_col']))),
                         int(float(format_float_value(row_dict['e_row']))),
                         int(row_dict['user_id']) if pd.notna(row_dict.get('user_id')) else None,
