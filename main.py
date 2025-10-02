@@ -1,4 +1,4 @@
-# 08/09/2025 - 10:00 
+# 02/10/2025 - 10:00 
 # IDE Cursor - auto 
 #  .\env\Scripts\Activate
 # streamlit run main.py
@@ -443,8 +443,8 @@ def main():
         menu_groups["Administração"].append("Monitor de Uso")
     # Adicionar Trocar Senha (disponível para todos os perfis)
     menu_groups["Administração"].append("Trocar Senha")
-    # Adicionar Zerar Valores por último
-    menu_groups["Administração"].append("Zerar Valores")
+    # Adicionar Zerar Valores por último - DESABILITADO
+    # menu_groups["Administração"].append("Zerar Valores")
     
     # Se não houver opções de administração, remover o grupo
     if not menu_groups["Administração"]:
@@ -500,8 +500,8 @@ def main():
         show_diagnostics()
     elif section == "Trocar Senha":
         trocar_senha()
-    elif section == "Zerar Valores":
-        zerar_value_element()
+    # elif section == "Zerar Valores":
+    #     zerar_value_element()
 
     # Após todo o código do menu, adicionar espaço e a imagem do rodapé
     st.sidebar.markdown("<br>" * 1, unsafe_allow_html=True)
